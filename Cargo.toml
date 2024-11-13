@@ -1,0 +1,27 @@
+[package]
+name = "creature"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.0", features = ["full"] }
+clap = "3.0"
+reqwest = { version = "0.11", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+futures = "0.3"
+async-trait = "0.1"
+tokio-stream = "0.1"
+rand = "0.8.5"
+ratatui = "0.24.0"
+crossterm = "0.27.0"
+colored = "2.0"
+ndarray = { version = "0.15", features = ["serde", "rayon"] }
+image = "0.24"
+colorgrad = "0.6"
+num-complex = { version = "0.4", features = ["serde"] }
+metal = "0.27"
+rayon = "1.8"
+warp = "0.3"

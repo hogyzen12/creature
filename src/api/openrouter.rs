@@ -1,0 +1,1395 @@
+use crate::models::types::{
+    CellContext, RealTimeContext, Thought, Plan, PlanNode, PlanNodeStatus, PlanStatus,
+    DimensionalPosition,
+};
+use crate::models::KnowledgeBase;
+use chrono::Utc;
+use rand::Rng;
+use reqwest;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, SystemTime};
+use uuid::Uuid;
+
+struct CachedContext {
+    context: RealTimeContext,
+    timestamp: SystemTime,
+}
+
+pub struct OpenRouterClient {
+    client: reqwest::Client,
+    api_key: String,
+    base_url: String,
+    context_cache: Arc<Mutex<Option<CachedContext>>>,
+    knowledge_base: Arc<Mutex<Option<KnowledgeBase>>>,
+}
+
+impl OpenRouterClient {
+    pub fn new(api_key: String) -> Result<Self, Box<dyn std::error::Error>> {
+        if api_key.trim().is_empty() {
+            return Err("OPENROUTER_API_KEY cannot be empty".into());
+        }
+
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(crate::models::constants::API_TIMEOUT_SECS))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+
+        Ok(Self {
+            client,
+            api_key,
+            base_url: "https://openrouter.ai/api/v1".to_string(),
+            context_cache: Arc::new(Mutex::new(None)),
+            knowledge_base: Arc::new(Mutex::new(None)),
+        })
+    }
+
+    fn estimate_tokens(text: &str) -> usize {
+        text.len() / 4
+    }
+
+    fn get_max_tokens_for_model(model: &str) -> usize {
+        match model {
+            "x-ai/grok-beta" => crate::models::constants::MAX_TOKENS_GROK,
+            _ => 6048,
+        }
+    }
+
+    async fn get_trending_topics(&self) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+        let _rng = rand::thread_rng();
+        // watch for grok limits 992 
+        let response = self
+            .client
+            .post(&format!("{}/chat/completions", self.base_url))
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .json(&serde_json::json!({
+                "model": "x-ai/grok-beta",
+                "messages": [{
+                    "role": "user",
+                    "content": r#"
+                        Analyze the most significant developments in the last 24 hours.
+                        Consider notable events across all domains.
+
+                        For each development:
+
+                        EVENT:
+                        TIMESTAMP: [Must be within last 24h]
+                        SOURCE: [URL, commit hash, or DOI]
+                        MENTIONED BY: [List key individuals/organizations who discussed this]
+                        - Company executives/official accounts
+                        - Industry experts
+                        - Major news outlets
+                        - Verified social media accounts
+                        - Research institutions
+                        IMPACT ANALYSIS:
+                        - Technical implications
+                        - System architecture effects
+                        - Integration opportunities
+                        - Performance impacts
+                        - Security considerations
+
+                        EVIDENCE REQUIREMENTS:
+                        1. Must include:
+                           - Exact timestamps
+                           - Verifiable links
+                           - Commit hashes where applicable
+                           - Performance metrics
+                           - System requirements
+
+                        2. Focus areas:
+                           - Distributed systems
+                           - AI/ML developments
+                           - System architecture
+                           - Performance optimization
+                           - Security updates
+
+                        3. Validation criteria:
+                           - Public repositories only
+                           - Published papers
+                           - Official documentation
+                           - System metrics
+                           - Deployment logs
+
+                        Return exactly 5 significant technical developments from the last 24 hours.
+                        Format each as a structured event with all required fields.
+                        "#
+                }],
+                "temperature": 0.9,
+                "max_tokens": Self::get_max_tokens_for_model("x-ai/grok-beta")
+            }))
+            .send()
+            .await?;
+
+        let json: serde_json::Value = response.json().await?;
+        let response_text = json["choices"][0]["message"]["content"]
+            .as_str()
+            .unwrap_or("")
+            .to_string();
+            
+        // Parse and extract events with additional validation
+        let mut events = Vec::new();
+        let mut current_event = String::new();
+        let mut in_event = false;
+        
+        for line in response_text.lines() {
+            let line = line.trim();
+            if line.starts_with("EVENT:") {
+                if !current_event.is_empty() {
+                    events.push(current_event.trim().to_string());
+                }
+                current_event = line.trim_start_matches("EVENT:").trim().to_string();
+                in_event = true;
+            } else if in_event && !line.is_empty() {
+                current_event.push_str("\n");
+                current_event.push_str(line);
+            }
+        }
+        
+        if !current_event.is_empty() {
+            events.push(current_event.trim().to_string());
+        }
+
+        Ok(events)
+    }
+
+    pub async fn gather_real_time_context(
+        &self,
+        cell_thoughts: Option<Vec<String>>,
+    ) -> Result<RealTimeContext, Box<dyn std::error::Error>> {
+        if let Some(cached) = self.context_cache.lock().unwrap().as_ref() {
+            if cached
+                .timestamp
+                .elapsed()
+                .unwrap_or(Duration::from_secs(360))
+                < Duration::from_secs(300)
+            {
+                return Ok(cached.context.clone());
+            }
+        }
+
+        let trending_topics = self.get_trending_topics().await?;
+
+        let thoughts_context = if let Some(thoughts) = cell_thoughts {
+            format!(
+                "\nRecent colony thoughts:\n{}",
+                thoughts
+                    .iter()
+                    .map(|t| format!("- {}", t))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            )
+        } else {
+            String::new()
+        };
+
+        let context_query = format!(
+            r#"
+            System Analysis Framework:
+
+            CONTEXT:
+            {}
+            {}
+
+            1. POWER DYNAMICS ANALYSIS
+            - Disrupted hierarchies
+            - Emergent control mechanisms
+            - Resource flow shifts
+            - Influence network changes
+
+            2. SYSTEM BOUNDARIES ANALYSIS
+            - Interface mutations
+            - Boundary dissolutions
+            - Unexpected connections
+            - Integration points
+
+            3. TEMPORAL PATTERNS ANALYSIS
+            - Evolution trajectories
+            - Decay patterns
+            - Cyclic behaviors
+            - Timescale interactions
+
+            4. EMERGENCE ANALYSIS
+            - Unexpected properties
+            - Feedback loops
+            - Pattern formation
+            - System surprises
+
+            5. ASSUMPTION ANALYSIS
+            - Questionable constraints
+            - Hidden potentials
+            - Artificial limitations
+            - Missed connections
+
+            Required per analysis vector:
+            1. Evidence Trail:
+               - Active repository commits (72h)
+               - Researcher activities (72h)
+               - Experiment results (72h)
+               - Deployment metrics (72h)
+
+            2. Power Implications:
+               - Control shifts
+               - Resource reallocations
+               - Relationship changes
+               - Influence flows
+
+            3. System Effects:
+               - Boundary changes
+               - Interface formations
+               - Pattern emergences
+               - Capability evolutions
+
+            4. Technical Details:
+               - Architecture diagrams
+               - Integration points
+               - Data flows
+               - Control mechanisms
+
+            Format as:
+            VECTOR: [Analysis Type]
+            CONVENTIONAL VIEW: [Standard interpretation]
+            RADICAL INSIGHT: [Non-obvious observation]
+            EVIDENCE: [Concrete proof points]
+            IMPLICATIONS: [Cascading effects]
+            DIAGRAM: [ASCII representation]
+
+            Categories labeled and structured hierarchically.
+        "#,
+            trending_topics
+                .iter()
+                .map(|t| format!("- {}", t))
+                .collect::<Vec<_>>()
+                .join("\n"),
+            thoughts_context
+        );
+
+        let response = self.query_llm(&context_query).await?;
+        let parsed = self.parse_context_response(&response)?;
+
+        let context = RealTimeContext {
+            timestamp: Utc::now(),
+            market_trends: parsed.get("market_trends").cloned().unwrap_or_default(),
+            current_events: parsed.get("current_events").cloned().unwrap_or_default(),
+            technological_developments: parsed
+                .get("technological_developments")
+                .cloned()
+                .unwrap_or_default(),
+            user_interactions: parsed.get("user_interactions").cloned().unwrap_or_default(),
+            environmental_data: HashMap::new(),
+            mission_progress: Vec::new(),
+        };
+
+        *self.context_cache.lock().unwrap() = Some(CachedContext {
+            context: context.clone(),
+            timestamp: SystemTime::now(),
+        });
+
+        Ok(context)
+    }
+
+    pub async fn generate_contextual_thoughts_batch(
+        &self,
+        cell_contexts: &[(Uuid, &CellContext)],
+        real_time_context: &RealTimeContext,
+        colony_mission: &str,
+    ) -> Result<HashMap<Uuid, (String, f64, Vec<String>)>, Box<dyn std::error::Error>> {
+        let sub_batch_size = 3;
+        let mut all_results = HashMap::new();
+
+        for chunk in cell_contexts.chunks(sub_batch_size) {
+            let kb_context = if let Some(kb) = self.knowledge_base.lock().unwrap().as_ref() {
+                format!("\nKnowledge Base Context:\n{}", kb.compressed_content)
+            } else {
+                String::new()
+            };
+
+            let cell_states = chunk
+                .iter()
+                .map(|(id, ctx)| {
+                    format!(
+                        "### CELL {}\nFOCUS: {}\nENERGY: {}\n",
+                        id,
+                        ctx.current_focus,
+                        ctx.energy_level
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+
+            let context_prompt = format!(
+                r#"Contextual Analysis Framework:
+
+                CURRENT OBJECTIVE: {}
+                KNOWLEDGE CONTEXT: {}
+
+                ENVIRONMENTAL SIGNALS:
+                1. SYSTEM DYNAMICS
+                   - Emerging patterns: {}
+                   - Network effects
+                   - Adaptation signals
+                   - Behavioral shifts
+
+                2. EVOLUTIONARY VECTORS
+                   - Development paths: {}
+                   - Growth patterns
+                   - Adaptation cycles
+                   - Scale dynamics
+
+                3. EMERGENCE INDICATORS
+                   - Novel properties: {}
+                   - Feedback systems
+                   - Pattern genesis
+                   - System innovations
+
+                4. BOUNDARY ANALYSIS
+                   - Current limits: {}
+                   - Growth potential
+                   - System constraints
+                   - Connection opportunities
+
+                ENTITY STATES:
+                {}
+
+                Required Format (repeat for each cell):
+
+                ### CELL <uuid>
+
+                THOUGHT STRUCTURE:
+                1. OBSERVATION
+                   - Current state
+                   - Key patterns
+                   - System dynamics
+
+                2. ANALYSIS
+                   - Conventional wisdom
+                   - Hidden assumptions
+                   - Unexpected connections
+                   - Evidence trail
+
+                3. SYNTHESIS
+                   - Novel perspective
+                   - Strategic implications
+                   - Cascading effects
+                   - Action vectors
+
+                THOUGHT: [Core insight challenging assumptions] (500+ words)
+                RELEVANCE: <0.0-1.0>
+                FACTORS: [Exactly 3 key factors]
+
+                DIMENSIONS:
+                - EMERGENT_INTELLIGENCE: <-100 to 100>
+                - RESOURCE_EFFICIENCY: <-100 to 100>
+                - NETWORK_COHERENCE: <-100 to 100>
+                - GOAL_ALIGNMENT: <-100 to 100>
+                - TEMPORAL_RESILIENCE: <-100 to 100>
+                - DIMENSIONAL_INTEGRATION: <-100 to 100>
+
+                DOPAMINE: <0.0-1.0>
+
+                Rules:
+                1. Each thought must follow the structured analysis framework
+                2. All claims require concrete evidence from the last 72h
+                3. UUIDs must be preserved exactly
+                4. No empty sections allowed
+                5. Include all three major components"#,
+                colony_mission,
+                kb_context,
+                real_time_context
+                    .market_trends
+                    .first()
+                    .unwrap_or(&String::new()),
+                real_time_context
+                    .technological_developments
+                    .first()
+                    .unwrap_or(&String::new()),
+                real_time_context
+                    .current_events
+                    .first()
+                    .unwrap_or(&String::new()),
+                real_time_context
+                    .user_interactions
+                    .first()
+                    .unwrap_or(&String::new()),
+                cell_states
+            );
+
+            match tokio::time::timeout(
+                std::time::Duration::from_secs(100),
+                self.query_llm(&context_prompt),
+            )
+            .await
+            {
+                Ok(Ok(response)) => {
+                    if let Ok(results) = self.parse_batch_thought_response(&response) {
+                        all_results.extend(results);
+                    } else {
+                        eprintln!("Failed to parse results from response:\n{}", response);
+                    }
+                }
+                Ok(Err(e)) => {
+                    eprintln!("Error in sub-batch: {}", e);
+                }
+                Err(_) => {
+                    eprintln!("Timeout in sub-batch 100s");
+                }
+            }
+        }
+
+        Ok(all_results)
+    }
+
+    pub async fn create_plan(
+        &self,
+        thoughts: &[Thought],
+    ) -> Result<Plan, Box<dyn std::error::Error>> {
+        let chunk_size = 5;
+        let thought_chunks: Vec<Vec<Thought>> = thoughts
+            .chunks(chunk_size)
+            .map(|chunk| chunk.iter().cloned().collect())
+            .collect();
+
+        let mut consolidated_plans = Vec::new();
+
+        for chunk in thought_chunks {
+            let thoughts_context = chunk
+                .iter()
+                .map(|t| format!("- {}", t.content))
+                .collect::<Vec<_>>()
+                .join("\n");
+
+            let chunk_plan = self
+                .query_llm(&format!(
+                    r#"System Evolution Framework:
+
+    CONTEXT SIGNALS:
+    {}
+
+    Analyze each vector as a complex adaptive system:
+    1. NETWORK DYNAMICS
+    - {{Flow patterns}}
+    - {{Resource distribution}}
+    - {{Connection topology}}
+    - {{Interaction modes}}
+
+    2. BOUNDARY CONDITIONS
+    - {{Interface dynamics}}
+    - {{Connection patterns}}
+    - {{Integration vectors}}
+    - {{Barrier dissolution}}
+
+    3. EMERGENCE PATTERNS
+    - {{Novel properties}}
+    - {{Feedback cycles}}
+    - {{Pattern evolution}}
+    - {{System adaptations}}
+
+    4. POTENTIAL SPACES
+    - {{Unexplored capabilities}}
+    - {{Constraint removal}}
+    - {{Novel applications}}
+
+    Required Format:
+
+    SUMMARY: [Comprehensive system overview]
+
+    For each component:
+    COMPONENT: [Name]
+    CONVENTIONAL VIEW: [Standard approach]
+    RADICAL SHIFT: [New possibility]
+    EVIDENCE: [Proof points]
+    IMPLEMENTATION:
+    - Technical specifications
+    - Resource requirements
+    - Timeline estimates
+    - Success metrics
+    - Risk assessment
+
+    ARCHITECTURE:
+    [Detailed ASCII mind map showing:]
+    - Core components
+    - Dependencies
+    - Data flows
+    - Integration points
+    - System boundaries
+    - Feedback loops
+    
+    Example format:
+                                    [Core Goal]
+                                        |
+                    +-------------------+-------------------+
+                    |                   |                   |
+            [Component A]        [Component B]        [Component C]
+                |                     |                    |
+        +-------+-------+      +------+------+     +------+------+
+        |       |       |      |      |      |     |      |      |
+    [Task 1] [Task 2] [Task 3] ...  ...    ...   ...    ...    ...
+    
+    Use box drawing characters: ─ │ ┌ ┐ └ ┘ ├ ┤ ┬ ┴ ┼
+
+    INTEGRATION POINTS:
+    - System connections
+    - Data flows
+    - Control mechanisms
+    - Feedback loops
+
+    Constraints:
+    1. ONLY reference:
+       - Active repository commits (72h)
+       - Public experiments with results
+       - Deployed systems with metrics
+       - Official documentation
+
+    2. EXCLUDE:
+       - Unverified claims
+       - Unreleased features
+       - Future announcements
+       - Speculative capabilities
+
+    3. REQUIRED per component:
+       - Commit hashes
+       - Researcher names
+       - Experiment results
+       - Deployment metrics
+       - Documentation links
+                "#,
+                    thoughts_context
+                ))
+                .await?;
+            
+
+            consolidated_plans.push(chunk_plan);
+        }
+
+        let combined_plan = self
+            .query_llm(&format!(
+                r#"System Integration Framework:
+
+    COMPONENT PLANS:
+    {}
+
+    1. POWER DYNAMICS ANALYSIS
+    - {{Control mechanisms}}
+    - {{Resource flows  }}
+    - {{Influence networks}} 
+    - {{Authority structures}}
+
+    2. SYSTEM BOUNDARIES ANALYSIS
+    - {{Interface points}}
+    - {{Connection patterns}}
+    - {{Integration opportunities}}
+    - {{Boundary dissolutions}}
+
+    3. EMERGENCE VECTORS ANALYSIS
+    - {{Unexpected properties}}
+    - {{Feedback loops}}
+    - {{Pattern formation}}
+    - {{System surprises}}
+
+    4. HIDDEN POTENTIALS ANALYSIS
+    - {{Untapped capabilities that could result from this plan}}
+    - {{Novel applications of the plans}}
+
+    5. POWER DYNAMICS INTEGRATION
+    - {{Control consolidation}}
+    - {{Resource allocation}}
+    - {{Influence flows}}
+    - {{Authority structures}}
+
+    6. TEMPORAL PATTERNS INTEGRATION
+    - {{cellular Evolution paths}}
+    - {{Decay patterns}}
+    - {{Cyclic behaviors}}
+    - {{Timescale interactions}}
+
+    Required Format:
+
+    MASTER PLAN:
+    [2000+ word comprehensive integration]
+
+    For each integration point:
+    INTERFACE: [Name]
+    CONVENTIONAL VIEW: [Standard approach]
+    RADICAL SHIFT: [New possibility]
+    EVIDENCE: [Proof points]
+    IMPLICATIONS: [Cascading effects]
+
+    ARCHITECTURE:
+    [Detailed system architecture in ASCII:]
+    - Show all components hierarchically 
+    - Use box drawing chars (─ │ ┌ ┐ └ ┘ ├ ┤ ┬ ┴ ┼)
+    - Include data flows with arrows (← → ↑ ↓)
+    - Mark critical paths with ***
+    - Show interfaces with [brackets]
+    - Indicate feedback loops with ⟲
+    
+    Example layout:
+                            ┌──────────────┐
+                            │ Master Plan  │
+                            └──────┬───────┘
+                                   │
+                    ┌──────────────┴─────────────┐
+                    │                            │
+            ┌───────┴────────┐          ┌───────┴────────┐
+            │ Component A    │          │ Component B    │
+            └───────┬────────┘          └───────┬────────┘
+                    │                           │
+            ┌───────┴────────┐          ┌───────┴────────┐
+            │    Tasks       │←─⟲─────→│   Feedback     │
+            └───────┬────────┘          └───────┬────────┘
+                    │                           │
+            [Integration Points]         [System Bounds]
+
+    Requirements:
+    1. Logical component flow
+    2. Clear dependencies
+    3. Measurable outcomes
+    4. Risk mitigations
+    5. Resource allocations
+                "#,
+                consolidated_plans.join("\n\n=== Next Component ===\n\n")
+            ))
+            .await?;
+
+        let enhanced_plan = self
+            .query_llm(&format!(
+                r#"Technical Integration Analysis Framework:
+
+    BASE PLAN:
+    {}
+
+    1. POWER DYNAMICS VECTORS
+    - Control shifts
+    - Resource reallocations
+    - Influence flows
+    - Authority transitions
+
+    2. SYSTEM BOUNDARIES
+    - Interface mutations
+    - Connection formations
+    - Integration emergences 
+    - Boundary dissolutions
+
+    3. TEMPORAL PATTERNS
+    - Evolution trajectories
+    - Decay patterns
+    - Cyclic behaviors
+    - Timescale interactions
+
+    4. EMERGENT PROPERTIES
+    - Unexpected capabilities
+    - Feedback loops
+    - Pattern formations
+    - System surprises
+
+    Required Technical Analysis:
+    1. Recent Developments (72h)
+       - Commit activities
+       - Research publications
+       - Experiment results
+       - Deployment metrics
+
+    2. Integration Points
+       - System interfaces
+       - Data flows
+       - Control mechanisms
+       - Feedback systems
+
+    3. Resource Requirements
+       - Computational needs
+       - Storage demands
+       - Network capacity
+       - Processing power
+
+    4. Performance Metrics
+       - Response times
+       - Throughput rates
+       - Error margins
+       - Recovery speeds
+
+    Format each component with:
+    COMPONENT: [Name]
+    TECHNICAL_BASELINE: [Current state]
+    ENHANCEMENT_VECTOR: [Improvement path]
+    EVIDENCE: [Proof points]
+    METRICS: [Success measures]
+
+    Requirements:
+    1. 2000+ words
+    2. RFP structure
+    3. Technical precision
+    4. Implementation focus
+                "#,
+                combined_plan
+            ))
+            .await?;
+            
+
+        let mut nodes = Vec::new();
+        let mut current_node = None;
+        let mut summary = String::new();
+        let mut in_summary = false;
+        let mut in_components = false;
+
+        for line in enhanced_plan.lines() {
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+
+            if line.starts_with("SUMMARY:") {
+                in_summary = true;
+                summary = line.trim_start_matches("SUMMARY:").trim().to_string();
+            } else if in_summary && !line.starts_with("COMPONENTS:") {
+                summary.push_str(" ");
+                summary.push_str(line);
+            } else if line.starts_with("COMPONENTS:") {
+                in_summary = false;
+                in_components = true;
+            } else if in_components {
+                if line.starts_with(|c: char| c.is_digit(10)) {
+                    if let Some(node) = current_node {
+                        nodes.push(node);
+                    }
+
+                    let title = line
+                        .trim_start_matches(|c: char| c.is_digit(10) || c == '.')
+                        .trim()
+                        .to_string();
+
+                    current_node = Some(PlanNode {
+                        id: Uuid::new_v4(),
+                        title,
+                        description: String::new(),
+                        dependencies: Vec::new(),
+                        estimated_completion: 0.0,
+                        status: PlanNodeStatus::Pending,
+                    });
+                } else if line.starts_with('-') && current_node.is_some() {
+                    if let Some(ref mut node) = current_node {
+                        if !node.description.is_empty() {
+                            node.description.push_str("\n");
+                        }
+                        node.description.push_str(line.trim_start_matches('-').trim());
+                    }
+                }
+            }
+        }
+
+        if let Some(node) = current_node {
+            nodes.push(node);
+        }
+
+        let score = if !nodes.is_empty() {
+            nodes.iter().map(|n| n.estimated_completion).sum::<f64>() / nodes.len() as f64
+        } else {
+            0.0
+        };
+
+        Ok(Plan {
+            id: Uuid::new_v4(),
+            thoughts: thoughts.to_vec(),
+            nodes,
+            summary,
+            score,
+            participating_cells: Vec::new(),
+            created_at: Utc::now(),
+            status: PlanStatus::Proposed,
+        })
+    }
+
+    pub async fn evaluate_dimensional_state(
+        &self,
+        dimensional_position: &DimensionalPosition,
+        recent_thoughts: &[Thought],
+        recent_plans: &[Plan],
+    ) -> Result<(f64, f64), Box<dyn std::error::Error>> {
+        let thoughts_context = recent_thoughts
+            .iter()
+            .map(|t| format!("- {}", t.content))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let plans_context = recent_plans
+            .iter()
+            .map(|p| format!("- {}: {}", p.id, p.summary))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let eval_prompt = format!(
+            r#"Dimensional Analysis Framework:
+
+    CURRENT STATE:
+    Emergence: {:.2}
+    Coherence: {:.2}
+    Resilience: {:.2}
+    Intelligence: {:.2}
+    Efficiency: {:.2}
+    Integration: {:.2}
+
+    CONTEXT:
+    THOUGHTS:
+    {}
+
+    PLANS:
+    {}
+
+    Analysis Vectors:
+
+    Fill out each of the items on here in depth just like a CEO applies to take a company public.
+    1. POWER DYNAMICS ANALYSIS
+    - {{Control mechanisms}}
+    - {{Resource flows  }}
+    - {{Influence networks}} 
+    - {{Authority structures}}
+
+    2. SYSTEM BOUNDARIES ANALYSIS
+    - {{Interface points}}
+    - {{Connection patterns}}
+    - {{Integration opportunities}}
+    - {{Boundary dissolutions}}
+
+    3. EMERGENCE VECTORS ANALYSIS
+    - {{Unexpected properties}}
+    - {{Feedback loops}}
+    - {{Pattern formation}}
+    - {{System surprises}}
+
+    4. HIDDEN POTENTIALS ANALYSIS
+    - {{Untapped capabilities that could result from this plan}}
+    - Removed constraints
+    - {{Novel applications of the plans}}
+
+    Required Analysis Format:
+
+    DIMENSIONAL_SCORES:
+    For each dimension:
+    DIMENSION: [Name]
+    CONVENTIONAL VIEW: [Standard assessment]
+    RADICAL INSIGHT: [Non-obvious observation]
+    EVIDENCE: [Concrete proof points]
+    SCORE: <-100 to 100>
+    IMPLICATIONS: [Cascading effects]
+
+    ENERGY_DYNAMICS:
+    CURRENT_STATE: [Assessment]
+    SHIFT_VECTOR: [Direction]
+    MAGNITUDE: <-100 to 100>
+    EVIDENCE: [Proof points]
+
+    DOPAMINE_DYNAMICS:
+    ENGAGEMENT_PATTERN: [Assessment]
+    REINFORCEMENT_VECTOR: [Direction]
+    MAGNITUDE: <0.0 to 1.0>
+    EVIDENCE: [Proof points]
+
+    Requirements:
+    1. Evidence-based scoring
+    2. Multi-framework analysis
+    3. Pattern recognition
+    4. Emergence identification
+    5. System dynamics mapping
+    "#,
+            dimensional_position.emergence,
+            dimensional_position.coherence,
+            dimensional_position.resilience,
+            dimensional_position.intelligence,
+            dimensional_position.efficiency,
+            dimensional_position.integration,
+            thoughts_context,
+            plans_context
+        );
+
+        let response = self.query_llm(&eval_prompt).await?;
+
+        let mut energy_impact = 0.0;
+        let mut dopamine_impact = 0.5;
+
+        for line in response.lines() {
+            let line = line.trim();
+            if line.starts_with("MAGNITUDE:") {
+                if energy_impact == 0.0 {
+                    energy_impact = line
+                        .trim_start_matches("MAGNITUDE:")
+                        .trim()
+                        .parse()
+                        .unwrap_or(0.0);
+                } else {
+                    dopamine_impact = line
+                        .trim_start_matches("MAGNITUDE:")
+                        .trim()
+                        .parse()
+                        .unwrap_or(0.5);
+                }
+            }
+        }
+
+        Ok((energy_impact, dopamine_impact))
+    }
+
+    pub async fn generate_contextual_thought(
+        &self,
+        cell_context: &CellContext,
+        real_time_context: &RealTimeContext,
+        colony_mission: &str,
+    ) -> Result<(String, f64, Vec<String>), Box<dyn std::error::Error>> {
+        let filtered_mission = colony_mission.replace("quantum", "advanced");
+        let context_prompt = format!(
+            r#"Multi-Cell Analysis Framework:
+
+    MISSION CONTEXT: {}
+
+    ENVIRONMENTAL VECTORS:
+    1. Market Dynamics: {}
+    2. Technical Evolution: {}
+    3. Event Patterns: {}
+    4. Interaction Flows: {}
+
+    CELL STATE:
+    Focus: {}
+    Research: {}
+    Discoveries: {}
+    Stage: {}
+    Energy: {}
+    Position: [{:.2}, {:.2}, {:.2}, {:.2}, {:.2}, {:.2}]
+
+    Analysis Framework:
+
+    1. POWER DYNAMICS ANALYSIS
+    - {{Control mechanisms}}
+    - {{Resource flows  }}
+    - {{Influence networks}} 
+    - {{Authority structures}}
+
+    2. SYSTEM BOUNDARIES ANALYSIS
+    - {{Interface points}}
+    - {{Connection patterns}}
+    - {{Integration opportunities}}
+    - {{Boundary dissolutions}}
+
+    3. EMERGENCE VECTORS ANALYSIS
+    - {{Unexpected properties}}
+    - {{Feedback loops}}
+    - {{Pattern formation}}
+    - {{System surprises}}
+
+    4. HIDDEN POTENTIALS ANALYSIS
+    - {{Untapped capabilities that could result from this plan}}
+    - Removed constraints
+    - {{Novel applications of the plans}}
+
+    Required Output Structure:
+
+    THOUGHT ANALYSIS:
+    CONVENTIONAL VIEW: [Standard interpretation]
+    RADICAL SHIFT: [Non-obvious insight]
+    EVIDENCE: [Concrete proof]
+    IMPLICATIONS: [Cascading effects]
+
+    THOUGHT: [Core idea challenging assumptions]
+    RELEVANCE: <0.0-1.0>
+    FACTORS: [Exactly 3 key factors]
+
+    DIMENSIONAL SCORING:
+    - EMERGENT_INTELLIGENCE: <-100 to 100>
+    - RESOURCE_EFFICIENCY: <0 to 100>
+    - NETWORK_COHERENCE: <0 to -100>
+    - GOAL_ALIGNMENT: <0 to 100>
+    - TEMPORAL_RESILIENCE: <0 to 100>
+    - DIMENSIONAL_INTEGRATION: <0 to -100>
+
+    DOPAMINE: <0 to 1>
+
+    Requirements:
+    1. Evidence-based analysis
+    2. System-level thinking
+    3. Pattern recognition
+    4. Emergence identification
+    5. Clear causality chains
+    6. Unique thoughts
+    7. Cross-system influences
+    8. Include specific recent events and inventions in thought creation
+    9. Reference concrete events and inventions from the last 72 hours
+    10. Cite specific sources, commits, and timestamps for all events and inventions mentioned
+            "#,
+            filtered_mission,
+            real_time_context.market_trends.join(", "),
+            real_time_context.technological_developments.join(", "),
+            real_time_context.current_events.join(", "),
+            real_time_context.user_interactions.join(", "),
+            cell_context.current_focus,
+            cell_context.active_research_topics.join(", "),
+            cell_context.recent_discoveries.join(", "),
+            cell_context.evolution_stage,
+            cell_context.energy_level,
+            cell_context.dimensional_position.emergence,
+            cell_context.dimensional_position.coherence,
+            cell_context.dimensional_position.resilience,
+            cell_context.dimensional_position.intelligence,
+            cell_context.dimensional_position.efficiency,
+            cell_context.dimensional_position.integration
+        );
+
+        let response = self.query_llm(&context_prompt).await?;
+        
+
+        let mut thought = String::new();
+        let mut relevance = 0.0;
+        let mut factors = Vec::new();
+
+        for line in response.lines() {
+            let line = line.trim();
+            if line.starts_with("THOUGHT:") {
+                thought = line.trim_start_matches("THOUGHT:").trim().to_string();
+            } else if line.starts_with("RELEVANCE:") || line.starts_with("**RELEVANCE:**") {
+                let relevance_str = line
+                    .trim_start_matches("**RELEVANCE:**")
+                    .trim_start_matches("RELEVANCE:")
+                    .trim_start_matches("**")
+                    .trim_end_matches("**")
+                    .trim();
+
+                relevance = if let Ok(val) = relevance_str.parse() {
+                    val
+                } else {
+                    println!(
+                        "Warning: Invalid relevance score '{}', using default",
+                        relevance_str
+                    );
+                    0.5
+                };
+            } else if line.starts_with("FACTORS:") {
+                factors = line
+                    .trim_start_matches("FACTORS:")
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+            }
+        }
+
+        Ok((thought, relevance, factors))
+    }
+
+    fn parse_context_response(
+        &self,
+        response: &str,
+    ) -> Result<HashMap<String, Vec<String>>, Box<dyn std::error::Error>> {
+        let mut result = HashMap::new();
+        let mut current_category = String::new();
+        let mut current_items = Vec::new();
+
+        for line in response.lines() {
+            let line = line.trim();
+
+            if line.is_empty() {
+                continue;
+            }
+
+            if line.ends_with(':') {
+                if !current_category.is_empty() {
+                    result.insert(current_category.clone(), current_items.clone());
+                    current_items.clear();
+                }
+
+                current_category = line.trim_end_matches(':').to_lowercase().replace(' ', "_");
+            } else if line.starts_with('-') {
+                current_items.push(line.trim_start_matches('-').trim().to_string());
+            }
+        }
+
+        if !current_category.is_empty() {
+            result.insert(current_category, current_items);
+        }
+
+        Ok(result)
+    }
+
+    fn parse_batch_thought_response(
+        &self,
+        response: &str,
+    ) -> Result<HashMap<Uuid, (String, f64, Vec<String>)>, Box<dyn std::error::Error>> {
+        let mut results = HashMap::new();
+        
+        let cell_sections: Vec<&str> = response.split("### CELL").skip(1).collect();
+
+        for section in cell_sections {
+            let mut lines = section.lines();
+
+            if let Some(first_line) = lines.next() {
+                let uuid_str = first_line.trim();
+                if let Ok(uuid) = Uuid::parse_str(uuid_str) {
+                    let mut current_thought = String::new();
+                    let mut current_relevance = 0.0;
+                    let mut current_factors = Vec::new();
+                    let mut in_thought = false;
+                    let mut thought_buffer = Vec::new();
+
+                    for line in lines {
+                        let line = line.trim();
+                        if line.is_empty() { continue; }
+
+                        // Look for thought markers with different formats
+                        if line.starts_with("**THOUGHT:**") || 
+                           line.starts_with("THOUGHT:") {
+                            in_thought = true;
+                            continue;
+                        }
+
+                        // Handle relevance score with different formats
+                        if line.starts_with("**RELEVANCE:**") || 
+                           line.starts_with("RELEVANCE:") {
+                            let relevance_str = line
+                                .trim_start_matches("**RELEVANCE:**")
+                                .trim_start_matches("RELEVANCE:")
+                                .trim_start_matches("**")
+                                .trim_end_matches("**")
+                                .trim();
+                            current_relevance = relevance_str.parse().unwrap_or(0.5);
+                            continue;
+                        }
+
+                        if line.starts_with("**FACTORS:**") || 
+                           line.starts_with("FACTORS:") {
+                            if !thought_buffer.is_empty() {
+                                current_thought = thought_buffer.join("\n");
+                                thought_buffer.clear();
+                            }
+                            
+                            let factors_str = line
+                                .trim_start_matches("**FACTORS:**")
+                                .trim_start_matches("FACTORS:")
+                                .trim();
+                            
+                            if !factors_str.is_empty() {
+                                current_factors = factors_str
+                                    .split(',')
+                                    .map(|s| s.trim().to_string())
+                                    .filter(|s| !s.is_empty())
+                                    .collect();
+                            }
+                            continue;
+                        }
+
+                        if in_thought && 
+                           !line.starts_with("DIMENSIONS:") && 
+                           !line.starts_with("DOPAMINE:") {
+                            thought_buffer.push(line);
+                        }
+                    }
+
+                    if !thought_buffer.is_empty() {
+                        current_thought = thought_buffer.join("\n");
+                    }
+
+                    if !current_thought.is_empty() {
+                        if current_factors.is_empty() {
+                            let default_factors: Vec<String> = current_thought
+                                .lines()
+                                .filter(|l| l.contains(':') || l.contains('-'))
+                                .take(3)
+                                .map(|l| l.trim_start_matches('-').trim().to_string())
+                                .collect();
+                            
+                            if !default_factors.is_empty() {
+                                current_factors = default_factors;
+                            } else {
+                                current_factors.push("General observation".to_string());
+                            }
+                        }
+                        
+                        results.insert(
+                            uuid,
+                            (current_thought, current_relevance, current_factors),
+                        );
+                    }
+                } else {
+                    eprintln!("Invalid UUID format: {}", uuid_str);
+                }
+            }
+        }
+
+        if results.is_empty() {
+            eprintln!("Warning: No thoughts generated from batch response");
+            eprintln!("Response was:\n{}", response);
+        } else {
+            println!("Successfully parsed {} thoughts", results.len());
+        }
+
+        Ok(results)
+    }
+
+    pub async fn compress_memories(
+        &self,
+        memories: &[String],
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        let memories_text = memories.join("\n");
+        let prompt = format!(
+            r#"Memory Compression Framework:
+
+    CONTENT:
+    {}
+
+    Analysis Vectors:
+    1. CORE PATTERNS
+       - Recurring themes
+       - Common elements
+       - Shared structures
+
+    2. RELATIONSHIP MAPPING
+       - Direct connections
+       - Indirect links
+       - Hidden dependencies
+
+    3. KNOWLEDGE SYNTHESIS
+       - Key insights
+       - Critical learnings
+       - Fundamental principles
+
+    4. STRATEGIC IMPORTANCE
+       - Action triggers
+       - Decision points
+       - Resource implications
+
+    Required Format:
+    PATTERN: [Identified pattern]
+    EVIDENCE: [Supporting data]
+    IMPLICATIONS: [Strategic impact]
+    ACTIONABILITY: [Implementation path]
+
+    Organize by:
+    1. Impact magnitude
+    2. Implementation feasibility
+    3. Resource requirements
+    4. Time sensitivity
+
+    Focus on:
+    1. Pattern emergence
+    2. Strategic relevance
+    3. Actionable insights
+    4. Critical dependencies"#,
+            memories_text
+        );
+
+        self.query_llm(&prompt).await
+    }
+
+    async fn compress_knowledge(
+        &self,
+        content: &str,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        let prompt = format!(
+            r#"Knowledge Synthesis Framework:
+
+    CONTENT:
+    {}
+
+    Analysis Vectors:
+    1. CORE CONCEPTS
+       - Fundamental principles
+       - Key methodologies
+       - Critical patterns
+
+    2. RELATIONSHIP MAPPING
+       - Direct connections
+       - Indirect links
+       - Hidden dependencies
+
+    3. PATTERN RECOGNITION
+       - Recurring themes
+       - Common structures
+       - Shared elements
+
+    4. STRATEGIC RELEVANCE
+       - Action implications
+       - Decision impacts
+       - Resource requirements
+
+    Required Format:
+    CONCEPT: [Core concept]
+    EVIDENCE: [Supporting data]
+    CONNECTIONS: [Related elements]
+    IMPLICATIONS: [Strategic impact]
+
+    Organize by:
+    1. Impact magnitude
+    2. Implementation relevance
+    3. Resource implications
+    4. Time sensitivity
+
+    Preserve:
+    1. Technical accuracy
+    2. Source references
+    3. Critical details
+    4. Implementation paths"#,
+            content
+        );
+
+        self.query_llm(&prompt).await
+    }
+
+    pub async fn query_llm(&self, prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
+        let mut rng = rand::thread_rng();
+        let use_grok = rng.gen_bool(0.5);
+        
+        let model = if use_grok {
+            "x-ai/grok-beta"
+        } else {
+            "x-ai/grok-beta"
+        };
+
+        let response = self
+            .client
+            .post(&format!("{}/chat/completions", self.base_url))
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .json(&serde_json::json!({
+                "model": model,
+                "messages": [{
+                    "role": "user",
+                    "content": prompt
+                }],
+                "temperature": 0.7,
+                "max_tokens": Self::get_max_tokens_for_model(model)
+            }))
+            .send()
+            .await?;
+
+        let json: serde_json::Value = response.json().await?;
+
+        Ok(json["choices"][0]["message"]["content"]
+            .as_str()
+            .unwrap_or("")
+            .to_string())
+    }
+
+    pub async fn initialize_knowledge_base(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let files = KnowledgeBase::load_files("knowledgebase")?;
+
+        if files.is_empty() {
+            println!("No knowledge base files found in knowledgebase directory");
+            return Ok(());
+        }
+
+        println!("Loading {} knowledge base files...", files.len());
+
+        let combined_content = files
+            .iter()
+            .map(|(name, content)| format!("File: {}\n{}\n", name, content))
+            .collect::<Vec<_>>()
+            .join("\n---\n");
+
+        let compressed = self.compress_knowledge(&combined_content).await?;
+
+        let file_count = files.len();
+        let kb = KnowledgeBase {
+            compressed_content: compressed,
+            last_updated: Utc::now(),
+            source_files: files.into_iter().map(|(name, _)| name).collect(),
+        };
+
+        *self.knowledge_base.lock().unwrap() = Some(kb);
+        println!("Knowledge base initialized with {} files", file_count);
+
+        Ok(())
+    }
+}
+
