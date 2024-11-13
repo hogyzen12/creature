@@ -1,5 +1,5 @@
 # CREATURE - BasedAI - [Local Only, No Brains]
-
+<img src="https://pbs.twimg.com/media/GcTMdVUXQAAmr24?format=jpg&name=4096x4096" alt="Image Description" width="500"/>
 A self-organizing framework that combines cellular automata, coherence, and language models to explore emergent collective intelligence through cells that think, plan, and evolve in a multi-dimensional space. In the BasedAI version, this joins a collective and would work for a specific Brain. 
 
 ## Table of Contents
