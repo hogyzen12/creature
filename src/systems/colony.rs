@@ -1347,7 +1347,6 @@ fn calculate_dimensional_complement(pos1: &DimensionalPosition, pos2: &Dimension
     let max_possible_diff = 1200.0; // 6 dimensions * 200 (max range of -100 to 100)
     1.0 - (total_complement / max_possible_diff)
 }
-
 fn calculate_distance(pos1: &Coordinates, pos2: &Coordinates) -> f64 {
     ((pos2.x - pos1.x).powi(2) + 
      (pos2.y - pos1.y).powi(2) + 
