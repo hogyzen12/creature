@@ -1318,6 +1318,21 @@ impl OpenRouterClient {
                     continue;
                 }
 
+                // Handle thought analysis section
+                if line.contains("THOUGHT ANALYSIS:") {
+                    in_thought = true;
+                    continue;
+                }
+
+                // Handle conventional/radical view sections
+                if line.contains("**CONVENTIONAL VIEW:**") || line.contains("**RADICAL SHIFT:**") {
+                    if !thought_buffer.is_empty() {
+                        thought_buffer.push("\n"); // Add spacing between sections
+                    }
+                    thought_buffer.push(line.trim_matches('*').trim().to_string());
+                    continue;
+                }
+
                 // Detect thought section with flexible markers
                 if line.to_uppercase().contains("THOUGHT") && line.contains(':') {
                     in_thought = true;
@@ -1384,6 +1399,18 @@ impl OpenRouterClient {
             // Finalize thought processing
             if !thought_buffer.is_empty() {
                 current_thought = thought_buffer.join("\n");
+            }
+
+            // If thought is still empty but we have evidence sections, try to construct from those
+            if current_thought.is_empty() {
+                let evidence_sections: Vec<String> = thought_buffer.iter()
+                    .filter(|line| line.contains("EVIDENCE:") || line.contains("IMPLICATIONS:"))
+                    .map(|line| line.trim().to_string())
+                    .collect();
+                
+                if !evidence_sections.is_empty() {
+                    current_thought = evidence_sections.join("\n");
+                }
             }
 
             // Only insert if we have valid data
