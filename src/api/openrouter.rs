@@ -1110,107 +1110,125 @@ impl OpenRouterClient {
     ) -> Result<HashMap<Uuid, (String, f64, Vec<String>)>, Box<dyn std::error::Error>> {
         let mut results = HashMap::new();
         
-        let cell_sections: Vec<&str> = response.split("### CELL").skip(1).collect();
+        // Split into cell sections, being more lenient with formatting
+        let cell_sections: Vec<&str> = response
+            .split(|c| c == '#' || c == '═' || c == '╔' || c == '╚')
+            .filter(|s| s.contains("CELL"))
+            .collect();
 
         for section in cell_sections {
             let mut lines = section.lines();
+            let mut current_uuid = None;
+            let mut current_thought = String::new();
+            let mut current_relevance = 0.5; // Default relevance
+            let mut current_factors = Vec::new();
+            let mut in_thought = false;
+            let mut thought_buffer = Vec::new();
 
-            if let Some(first_line) = lines.next() {
-                let uuid_str = first_line.trim();
-                if let Ok(uuid) = Uuid::parse_str(uuid_str) {
-                    let mut current_thought = String::new();
-                    let mut current_relevance = 0.0;
-                    let mut current_factors = Vec::new();
-                    let mut in_thought = false;
-                    let mut thought_buffer = Vec::new();
+            while let Some(line) = lines.next() {
+                let line = line.trim();
+                if line.is_empty() { continue; }
 
-                    for line in lines {
-                        let line = line.trim();
-                        if line.is_empty() { continue; }
-
-                        // Look for thought markers with different formats
-                        if line.starts_with("**THOUGHT:**") || 
-                           line.starts_with("THOUGHT:") {
-                            in_thought = true;
-                            continue;
-                        }
-
-                        // Handle relevance score with different formats
-                        if line.starts_with("**RELEVANCE:**") || 
-                           line.starts_with("RELEVANCE:") {
-                            let relevance_str = line
-                                .trim_start_matches("**RELEVANCE:**")
-                                .trim_start_matches("RELEVANCE:")
-                                .trim_start_matches("**")
-                                .trim_end_matches("**")
-                                .trim();
-                            current_relevance = relevance_str.parse().unwrap_or(0.5);
-                            continue;
-                        }
-
-                        if line.starts_with("**FACTORS:**") || 
-                           line.starts_with("FACTORS:") {
-                            if !thought_buffer.is_empty() {
-                                current_thought = thought_buffer.join("\n");
-                                thought_buffer.clear();
-                            }
-                            
-                            let factors_str = line
-                                .trim_start_matches("**FACTORS:**")
-                                .trim_start_matches("FACTORS:")
-                                .trim();
-                            
-                            if !factors_str.is_empty() {
-                                current_factors = factors_str
-                                    .split(',')
-                                    .map(|s| s.trim().to_string())
-                                    .filter(|s| !s.is_empty())
-                                    .collect();
-                            }
-                            continue;
-                        }
-
-                        if in_thought && 
-                           !line.starts_with("DIMENSIONS:") && 
-                           !line.starts_with("DOPAMINE:") {
-                            thought_buffer.push(line);
+                // Extract UUID - now more flexible
+                if line.contains("CELL") {
+                    if let Some(uuid_str) = line
+                        .split(|c: char| !c.is_ascii_hexdigit() && c != '-')
+                        .find(|s| s.len() == 36) 
+                    {
+                        if let Ok(uuid) = Uuid::parse_str(uuid_str) {
+                            current_uuid = Some(uuid);
                         }
                     }
+                    continue;
+                }
 
+                // Detect thought section with flexible markers
+                if line.to_uppercase().contains("THOUGHT") && line.contains(':') {
+                    in_thought = true;
+                    continue;
+                }
+
+                // Parse relevance with improved number extraction
+                if line.to_uppercase().contains("RELEVANCE") {
+                    if let Some(value) = line
+                        .split(|c: char| !c.is_ascii_digit() && c != '.' && c != '-')
+                        .find(|s| !s.is_empty())
+                        .and_then(|s| s.parse::<f64>().ok()) 
+                    {
+                        current_relevance = value.clamp(0.0, 1.0);
+                    }
+                    continue;
+                }
+
+                // Parse factors with improved list handling
+                if line.to_uppercase().contains("FACTORS") {
                     if !thought_buffer.is_empty() {
                         current_thought = thought_buffer.join("\n");
+                        thought_buffer.clear();
                     }
-
-                    if !current_thought.is_empty() {
-                        if current_factors.is_empty() {
-                            let default_factors: Vec<String> = current_thought
-                                .lines()
-                                .filter(|l| l.contains(':') || l.contains('-'))
-                                .take(3)
-                                .map(|l| l.trim_start_matches('-').trim().to_string())
-                                .collect();
-                            
-                            if !default_factors.is_empty() {
-                                current_factors = default_factors;
+                    
+                    current_factors = line
+                        .split(|c| c == ',' || c == ';' || c == '|')
+                        .filter_map(|s| {
+                            let cleaned = s.trim()
+                                .trim_start_matches(|c| c == '-' || c == '*' || c == '[' || c == ']')
+                                .trim_end_matches(|c| c == ']' || c == ':')
+                                .trim();
+                            if !cleaned.is_empty() {
+                                Some(cleaned.to_string())
                             } else {
-                                current_factors.push("General observation".to_string());
+                                None
                             }
-                        }
+                        })
+                        .collect();
+                    continue;
+                }
+
+                // Collect thought content
+                if in_thought && 
+                   !line.to_uppercase().contains("DIMENSION") && 
+                   !line.to_uppercase().contains("DOPAMINE") {
+                    thought_buffer.push(line);
+                }
+            }
+
+            // Finalize thought processing
+            if !thought_buffer.is_empty() {
+                current_thought = thought_buffer.join("\n");
+            }
+
+            // Only insert if we have valid data
+            if let Some(uuid) = current_uuid {
+                if !current_thought.is_empty() {
+                    // Generate factors from thought content if none found
+                    if current_factors.is_empty() {
+                        current_factors = current_thought
+                            .lines()
+                            .filter(|l| l.contains(':') || l.contains('-'))
+                            .take(3)
+                            .map(|l| l.trim_start_matches(|c| c == '-' || c == '*' || c == '[')
+                                 .trim_end_matches(|c| c == ']')
+                                 .trim()
+                                 .to_string())
+                            .collect();
                         
-                        results.insert(
-                            uuid,
-                            (current_thought, current_relevance, current_factors),
-                        );
+                        if current_factors.is_empty() {
+                            current_factors.push("General observation".to_string());
+                        }
                     }
-                } else {
-                    eprintln!("Invalid UUID format: {}", uuid_str);
+                    
+                    results.insert(uuid, (current_thought, current_relevance, current_factors));
                 }
             }
         }
 
+        // Improved error reporting
         if results.is_empty() {
-            eprintln!("Warning: No thoughts generated from batch response");
-            eprintln!("Response was:\n{}", response);
+            eprintln!("Warning: Failed to parse any thoughts from response");
+            eprintln!("Response structure:");
+            for (i, line) in response.lines().enumerate() {
+                eprintln!("{:3}: {}", i + 1, line);
+            }
         } else {
             println!("Successfully parsed {} thoughts", results.len());
         }
