@@ -16,11 +16,18 @@ struct CachedContext {
     timestamp: SystemTime,
 }
 
+#[derive(Default)]
+struct ContextHistory {
+    contexts: VecDeque<RealTimeContext>,
+    max_size: usize,
+}
+
 pub struct OpenRouterClient {
     client: reqwest::Client,
     api_key: String,
     base_url: String,
     context_cache: Arc<Mutex<Option<CachedContext>>>,
+    context_history: Arc<Mutex<ContextHistory>>,
     knowledge_base: Arc<Mutex<Option<KnowledgeBase>>>,
 }
 
@@ -40,6 +47,10 @@ impl OpenRouterClient {
             api_key,
             base_url: "https://openrouter.ai/api/v1".to_string(),
             context_cache: Arc::new(Mutex::new(None)),
+            context_history: Arc::new(Mutex::new(ContextHistory {
+                contexts: VecDeque::with_capacity(20),
+                max_size: 20,
+            })),
             knowledge_base: Arc::new(Mutex::new(None)),
         })
     }
@@ -241,7 +252,25 @@ impl OpenRouterClient {
             }
         }
 
+        // Get previous contexts for comparison
+        let previous_contexts = {
+            let history = self.context_history.lock().unwrap();
+            history.contexts.iter().cloned().collect::<Vec<_>>()
+        };
+
         let trending_topics = self.get_trending_topics().await?;
+
+        // Compare with previous contexts to ensure uniqueness
+        let unique_topics: Vec<String> = trending_topics
+            .into_iter()
+            .filter(|topic| {
+                !previous_contexts.iter().any(|ctx| 
+                    ctx.market_trends.contains(topic) ||
+                    ctx.technological_developments.contains(topic) ||
+                    ctx.current_events.contains(topic)
+                )
+            })
+            .collect();
 
         let thoughts_context = if let Some(thoughts) = cell_thoughts {
             format!(
@@ -353,10 +382,20 @@ impl OpenRouterClient {
             mission_progress: Vec::new(),
         };
 
+        // Store in cache
         *self.context_cache.lock().unwrap() = Some(CachedContext {
             context: context.clone(),
             timestamp: SystemTime::now(),
         });
+
+        // Add to history
+        {
+            let mut history = self.context_history.lock().unwrap();
+            history.contexts.push_back(context.clone());
+            while history.contexts.len() > history.max_size {
+                history.contexts.pop_front();
+            }
+        }
 
         Ok(context)
     }
