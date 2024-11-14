@@ -345,6 +345,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         current_cycle += 1;
         
         time::sleep(Duration::from_millis(CYCLE_DELAY_MS)).await;
+        
+        // Display thinking animation
+        for frame in 0..12 {
+            if !running.load(Ordering::SeqCst) {
+                break;
+            }
+            crate::utils::animations::update_thinking_animation(frame).await;
+        }
+        println!(); // Clear animation line
     }
 
     if !running.load(Ordering::SeqCst) {
