@@ -48,12 +48,12 @@ impl Cell {
             neighbors: Vec::new(),
             energy: 100.0,
             dimensional_position: DimensionalPosition {
-                emergence: 0.0,
-                coherence: 0.0,
-                resilience: 0.0,
-                intelligence: 0.0,
-                efficiency: 0.0,
-                integration: 0.0,
+                emergence: 50,
+                coherence: 50,
+                resilience: 50,
+                intelligence: 50,
+                efficiency: 50,
+                integration: 50,
             },
             dopamine: 0.5,
             enhanced_state: EnhancedCellState::new(),
@@ -523,16 +523,17 @@ impl Cell {
         
         // Update dimensional position based on context alignment
         let dimension_adjustment = (self.context_alignment_score - 0.5) * 2.0;
-        self.dimensional_position.emergence += dimension_adjustment * 0.1;
-        self.dimensional_position.coherence += dimension_adjustment * 0.1;
-        self.dimensional_position.intelligence += dimension_adjustment * 0.15;
-        self.dimensional_position.efficiency += dimension_adjustment * 0.1;
+        // Calculate adjustments as whole numbers
+        let emergence_adj = (dimension_adjustment * 10.0) as i32;
+        let coherence_adj = (dimension_adjustment * 10.0) as i32;
+        let intelligence_adj = (dimension_adjustment * 15.0) as i32;
+        let efficiency_adj = (dimension_adjustment * 10.0) as i32;
         
-        // Clamp dimensional values
-        self.dimensional_position.emergence = self.dimensional_position.emergence.clamp(-100.0, 100.0);
-        self.dimensional_position.coherence = self.dimensional_position.coherence.clamp(-100.0, 100.0);
-        self.dimensional_position.intelligence = self.dimensional_position.intelligence.clamp(-100.0, 100.0);
-        self.dimensional_position.efficiency = self.dimensional_position.efficiency.clamp(-100.0, 100.0);
+        // Apply adjustments and clamp to 0-100 range
+        self.dimensional_position.emergence = (self.dimensional_position.emergence + emergence_adj).clamp(0, 100);
+        self.dimensional_position.coherence = (self.dimensional_position.coherence + coherence_adj).clamp(0, 100);
+        self.dimensional_position.intelligence = (self.dimensional_position.intelligence + intelligence_adj).clamp(0, 100);
+        self.dimensional_position.efficiency = (self.dimensional_position.efficiency + efficiency_adj).clamp(0, 100);
         
         // Adjust dopamine based on context alignment
         self.dopamine = self.dopamine * 0.9 + self.context_alignment_score * 0.1;

@@ -1091,30 +1091,21 @@ impl Colony {
                 let adjustment_factor = 0.1 * execution_rate;
                 
                 // Emergence increases with successful plan execution
-                cell.dimensional_position.emergence += adjustment_factor * 10.0;
-                
-                // Coherence improves with plan completion
-                cell.dimensional_position.coherence += adjustment_factor * 8.0;
-                
-                // Resilience grows with sustained execution
-                cell.dimensional_position.resilience += adjustment_factor * 5.0;
-                
-                // Intelligence reflects learning from execution
-                cell.dimensional_position.intelligence += adjustment_factor * 7.0;
-                
-                // Efficiency improves with practice
-                cell.dimensional_position.efficiency += adjustment_factor * 6.0;
-                
-                // Integration shows system coordination
-                cell.dimensional_position.integration += adjustment_factor * 9.0;
+                // Calculate adjustments as whole numbers
+                let emergence_adj = (adjustment_factor * 10.0) as i32;
+                let coherence_adj = (adjustment_factor * 8.0) as i32;
+                let resilience_adj = (adjustment_factor * 5.0) as i32;
+                let intelligence_adj = (adjustment_factor * 7.0) as i32;
+                let efficiency_adj = (adjustment_factor * 6.0) as i32;
+                let integration_adj = (adjustment_factor * 9.0) as i32;
 
-                // Clamp all values to valid ranges (-100 to 100)
-                cell.dimensional_position.emergence = cell.dimensional_position.emergence.clamp(-100.0, 100.0);
-                cell.dimensional_position.coherence = cell.dimensional_position.coherence.clamp(-100.0, 100.0);
-                cell.dimensional_position.resilience = cell.dimensional_position.resilience.clamp(-100.0, 100.0);
-                cell.dimensional_position.intelligence = cell.dimensional_position.intelligence.clamp(-100.0, 100.0);
-                cell.dimensional_position.efficiency = cell.dimensional_position.efficiency.clamp(-100.0, 100.0);
-                cell.dimensional_position.integration = cell.dimensional_position.integration.clamp(-100.0, 100.0);
+                // Apply adjustments and clamp to 0-100 range
+                cell.dimensional_position.emergence = (cell.dimensional_position.emergence + emergence_adj).clamp(0, 100);
+                cell.dimensional_position.coherence = (cell.dimensional_position.coherence + coherence_adj).clamp(0, 100);
+                cell.dimensional_position.resilience = (cell.dimensional_position.resilience + resilience_adj).clamp(0, 100);
+                cell.dimensional_position.intelligence = (cell.dimensional_position.intelligence + intelligence_adj).clamp(0, 100);
+                cell.dimensional_position.efficiency = (cell.dimensional_position.efficiency + efficiency_adj).clamp(0, 100);
+                cell.dimensional_position.integration = (cell.dimensional_position.integration + integration_adj).clamp(0, 100);
 
                 println!("Cell {} dimensional audit:", cell_id);
                 println!("  Plan execution rate: {:.1}%", execution_rate * 100.0);
