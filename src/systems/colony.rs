@@ -79,7 +79,6 @@ impl Colony {
                         }
                     }
                 }
-                
                 if retries == 0 {
                     error_count += 1;
                     log_error(&format!("Failed to generate thought for cell {} after all retries", cell_id));
