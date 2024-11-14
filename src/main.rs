@@ -337,9 +337,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 batch_idx / BATCH_SIZE + 1, (cell_ids.len() + BATCH_SIZE - 1) / BATCH_SIZE);
             let batch_end = (batch_idx + BATCH_SIZE).min(cell_ids.len());
             let batch = cell_ids[batch_idx..batch_end].to_vec();
+            println!("\n╔════════════════════ PLAN GENERATION ═══════════════════╗");
+            println!("║ Batch {}/{} - Processing {} cells", 
+                batch_idx / BATCH_SIZE + 1, 
+                (cell_ids.len() + BATCH_SIZE - 1) / BATCH_SIZE,
+                batch.len()
+            );
+            println!("╠══════════════════════════════════════════════════════════╣");
+
             if let Err(e) = colony.lock().unwrap().create_plans_batch(&batch, &current_cycle.to_string()).await {
                 eprintln!("Error creating plans batch: {}", e);
             }
+                
+            println!("╚══════════════════════════════════════════════════════════╝");
         }
         
         // Evolution phase

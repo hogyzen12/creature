@@ -487,6 +487,7 @@ impl OpenRouterClient {
                 cell_states
             );
 
+            println!("\n║ Processing sub-batch of {} cells", chunk.len());
             match tokio::time::timeout(
                 std::time::Duration::from_secs(100),
                 self.query_llm(&context_prompt),
@@ -495,6 +496,17 @@ impl OpenRouterClient {
             {
                 Ok(Ok(response)) => {
                     if let Ok(results) = self.parse_batch_thought_response(&response) {
+                        println!("║ Generated {} plans", results.len());
+                        for (id, (thought, score, factors)) in &results {
+                            println!("║");
+                            println!("║ Cell {}", id);
+                            println!("║ ├─ Score: {:.2}", score);
+                            println!("║ ├─ Factors:");
+                            for factor in factors {
+                                println!("║ │  - {}", factor);
+                            }
+                            println!("║ └─ Thought: {:.100}...", thought);
+                        }
                         all_results.extend(results);
                     } else {
                         eprintln!("Failed to parse results from response:\n{}", response);
