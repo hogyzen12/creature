@@ -75,7 +75,7 @@ impl Default for Coordinates {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Thought {
-    pub id: Uuid,
+    pub id: String,
     pub content: String,
     pub timestamp: DateTime<Utc>,
     pub relevance_score: f64,

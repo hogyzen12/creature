@@ -14,6 +14,7 @@ pub struct Cell {
     pub id: Uuid,
     pub position: Coordinates,
     pub thoughts: VecDeque<Thought>,
+    pub thought_counter: usize,
     pub compressed_memories: Vec<String>,
     pub current_plan: Option<Plan>,
     pub mission_alignment_score: f64,
@@ -69,6 +70,7 @@ impl Cell {
             context_influence: 0.7,
             last_context_update: None,
             context_alignment_score: 0.5,
+            thought_counter: 0,
         }
     }
 
@@ -279,8 +281,15 @@ impl Cell {
         // Filter out restricted terms
         let filtered_content = thought_content.replace("quantum", "advanced");
         
+        self.thought_counter += 1;
+        let thought_id = format!("{:.2}_{:.2}_{:.2}_{}", 
+            self.position.x, 
+            self.position.y, 
+            self.position.z,
+            self.thought_counter
+        );
         let thought = Thought {
-            id: Uuid::new_v4(),
+            id: thought_id,
             content: filtered_content,
             timestamp: Utc::now(),
             relevance_score,
