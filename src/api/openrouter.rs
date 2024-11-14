@@ -1181,12 +1181,39 @@ impl OpenRouterClient {
 
         // Validate thought content before returning
         if thought.trim().is_empty() {
-            eprintln!("Error: Empty thought content generated from response:");
-            eprintln!("═══════════════ LLM RESPONSE ═══════════════");
-            eprintln!("{}", response);
-            eprintln!("═══════════════════════════════════════════");
-            eprintln!("Using placeholder thought instead");
-            thought = "Exploring system dynamics and adaptation patterns".to_string();
+            // Try to extract thought from THOUGHT ANALYSIS section
+            if let Some(analysis_section) = response.split("THOUGHT ANALYSIS:").nth(1) {
+                if let Some(end_idx) = analysis_section.find("DIMENSIONAL SCORING:") {
+                    let analysis = analysis_section[..end_idx].trim();
+                    
+                    // Extract content between RADICAL SHIFT and EVIDENCE if present
+                    if let Some(radical_shift) = analysis.split("RADICAL SHIFT:").nth(1) {
+                        if let Some(end_evidence) = radical_shift.find("EVIDENCE:") {
+                            thought = radical_shift[..end_evidence].trim().to_string();
+                        }
+                    }
+                    
+                    // If still empty, try to extract any substantial paragraph
+                    if thought.trim().is_empty() {
+                        thought = analysis
+                            .lines()
+                            .filter(|l| l.len() > 100) // Look for substantial paragraphs
+                            .next()
+                            .unwrap_or("Exploring system dynamics and adaptation patterns")
+                            .to_string();
+                    }
+                }
+            }
+            
+            // If still empty after trying to extract, use placeholder
+            if thought.trim().is_empty() {
+                eprintln!("Error: Could not extract valid thought from response:");
+                eprintln!("═══════════════ LLM RESPONSE ═══════════════");
+                eprintln!("{}", response);
+                eprintln!("═══════════════════════════════════════════");
+                eprintln!("Using placeholder thought instead");
+                thought = "Exploring system dynamics and adaptation patterns".to_string();
+            }
         }
 
         // Ensure we have at least one factor
