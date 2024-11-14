@@ -1,4 +1,5 @@
 use crate::models::types::{CellContext, Coordinates, Plan, PlanStatus, ColonyStatistics, Thought, DimensionalPosition};
+use crate::models::state::LeniaWorldState;
 use crate::utils::logging::*;
 use std::error::Error;
 use std::path::Path;
@@ -999,7 +1000,7 @@ impl Colony {
             total_cycles: 0,
             mission: self.mission.clone(),
             lenia_world: Some(LeniaWorldState {
-                grid: self.lenia_world.grid.as_slice().to_vec(),
+                grid: self.lenia_world.grid.to_vec(),
                 size: self.lenia_world.grid.shape()[0],
                 growth_mu: self.lenia_world.params.growth_mu,
                 growth_sigma: self.lenia_world.params.growth_sigma,
