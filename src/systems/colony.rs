@@ -992,7 +992,7 @@ impl Colony {
     }
 
     pub fn update_leaderboard(&mut self) {
-        self.plan_leaderboard.clear();
+        let mut new_leaderboard = HashMap::new();
         
         for (id, cell) in &self.cells {
             // Get metrics from current plan if it exists
@@ -1012,8 +1012,11 @@ impl Colony {
             let total_thoughts = current_thoughts + cell.thoughts.len();
             
             // Track the highest metrics seen
-            self.plan_leaderboard.insert(*id, (total_thoughts, current_collabs));
+            new_leaderboard.insert(*id, (total_thoughts, current_collabs));
         }
+
+        // Atomic update
+        self.plan_leaderboard = new_leaderboard;
     }
 
     pub fn print_leaderboard(&self) {

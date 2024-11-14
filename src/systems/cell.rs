@@ -281,7 +281,8 @@ impl Cell {
         // Filter out restricted terms
         let filtered_content = thought_content.replace("quantum", "advanced");
         
-        self.thought_counter += 1;
+        // Safely increment thought counter with overflow check
+        self.thought_counter = self.thought_counter.saturating_add(1);
         let thought_id = format!("{:.2}_{:.2}_{:.2}_{}", 
             self.position.x, 
             self.position.y, 

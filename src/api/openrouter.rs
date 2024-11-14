@@ -1239,7 +1239,10 @@ impl OpenRouterClient {
     }
 
     pub async fn initialize_knowledge_base(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let files = KnowledgeBase::load_files("knowledgebase")?;
+        let files = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            async { KnowledgeBase::load_files("knowledgebase") }
+        ).await??;
 
         if files.is_empty() {
             println!("No knowledge base files found in knowledgebase directory");
