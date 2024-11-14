@@ -288,7 +288,18 @@ impl Cell {
             real_time_factors: factors,
             confidence_score: self.calculate_confidence_score(&real_time_context),
         };
-        println!("{:?}", thought);
+        println!("\nGenerated Thought:");
+        println!("════════════════════════════════════════════════════════════════════");
+        println!("ID: {}", thought.id);
+        println!("Content:\n{}", thought.content);
+        println!("Relevance Score: {:.2}", thought.relevance_score);
+        println!("Confidence Score: {:.2}", thought.confidence_score);
+        println!("Context Tags: {}", thought.context_tags.join(", "));
+        println!("Real-time Factors:");
+        for factor in &thought.real_time_factors {
+            println!("  - {}", factor);
+        }
+        println!("════════════════════════════════════════════════════════════════════\n");
 
         if let Some(ref mut plan) = self.current_plan {
             if plan.summary.trim().is_empty() {

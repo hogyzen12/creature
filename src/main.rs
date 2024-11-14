@@ -22,7 +22,6 @@ use tokio::sync::mpsc::{self, Sender};
 
 
 const DEFAULT_INITIAL_CELLS: usize = 32;
-const INITIAL_CELLS: usize = DEFAULT_INITIAL_CELLS;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -124,7 +123,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .short('c')
             .long("cells")
             .value_name("COUNT")
-            .help("Sets the initial number of cells")
+            .help("Sets the initial number of cells (default: 32)")
             .takes_value(true))
         .get_matches();
 
