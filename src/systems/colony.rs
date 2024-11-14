@@ -333,9 +333,9 @@ impl Colony {
         // Update cells with their new thoughts, adjusting dimensional positions 
         for (cell_id, thoughts) in batch_results {
             for (thought_content, relevance_score, real_time_factors) in thoughts {
-            // First get a clone of the cell
-            if let Some(cell) = self.cells.get(&cell_id).cloned() {
-                let mut updated_cell = cell;
+                // First get a clone of the cell
+                if let Some(cell) = self.cells.get(&cell_id).cloned() {
+                    let mut updated_cell = cell;
                 
                 // Adjust dimensional position based on imbalance
                 let adjustment = 0.1 * (1.0 - imbalance.min(1.0));
