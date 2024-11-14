@@ -39,8 +39,7 @@ pub fn print_banner() -> usize {
      │  U P  N E O . . │  |、˜〵      /system.mind.based/
      └──────────────────┘   じしˍ,)ノ  [based::maximized]
 
-    MISSION: {}
-"#.cyan());
+    MISSION: {}"#.cyan(), mission);
 
     let line_num = r#"
  ██████╗██████╗ ███████╗ █████╗ ████████╗██╗   ██╗██████╗ ███████╗
