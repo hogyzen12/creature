@@ -577,25 +577,24 @@ impl OpenRouterClient {
 
                 ENVIRONMENTAL SIGNALS:
                 1. SYSTEM DYNAMICS
-                   - Emerging patterns: {}
+                   - Emerging patterns
                    - Network effects
                    - Adaptation signals
                    - Behavioral shifts
 
                 2. EVOLUTIONARY VECTORS
-                   - Development paths: {}
+                   - Development paths
                    - Growth patterns
                    - Adaptation cycles
                    - Scale dynamics
 
                 3. EMERGENCE INDICATORS
-                   - Novel properties: {}
-                   - Feedback systems
+                   - Novel properties
                    - Pattern genesis
                    - System innovations
 
                 4. BOUNDARY ANALYSIS
-                   - Current limits: {}
+                   - Current limits
                    - Growth potential
                    - System constraints
                    - Connection opportunities
@@ -633,40 +632,23 @@ impl OpenRouterClient {
                    - Integration points
                    - System boundaries
                    - Feedback loops
-    
+
                 Example format:
-                                                [Core Goal]
-                                                    |
-                                +-------------------+-------------------+
-                                |                   |                   |
-                        [Component A]        [Component B]        [Component C]
-                            |                     |                    |
-                    +-------+-------+      +------+------+     +------+------+
-                    |       |       |      |      |      |     |      |      |
-                [Task 1] [Task 2] [Task 3] ...  ...    ...   ...    ...    ...
-    
+                                                    [Core Goal]
+                                                        |
+                                    +-------------------+-------------------+
+                                    |                   |                   |
+                            [Component A]        [Component B]        [Component C]
+                                |                     |                    |
+                        +-------+-------+      +------+------+     +------+------+
+                        |       |       |      |      |      |     |      |      |
+                    [Task 1] [Task 2] [Task 3] ...  ...    ...   ...    ...    ...
+
                 Use box drawing characters: ─ │ ┌ ┐ └ ┘ ├ ┤ ┬ ┴ ┼
 
                 THOUGHT: [Core insight challenging assumptions] (500+ words)
                 RELEVANCE: <0.0-1.0>
-                FACTORS: [Exactly 3 key factors]
-
-                DIMENSIONS:
-                - EMERGENT_INTELLIGENCE: <-100 to 100>
-                - RESOURCE_EFFICIENCY: <-100 to 100>
-                - NETWORK_COHERENCE: <-100 to 100>
-                - GOAL_ALIGNMENT: <-100 to 100>
-                - TEMPORAL_RESILIENCE: <-100 to 100>
-                - DIMENSIONAL_INTEGRATION: <-100 to 100>
-
-                DOPAMINE: <0.0-1.0>
-
-                Rules:
-                1. Each thought must follow the structured analysis framework
-                2. All claims require concrete evidence from the last 72h
-                3. UUIDs must be preserved exactly
-                4. No empty sections allowed
-                5. Include all three major components"#,
+                FACTORS: [Exactly 3 key factors]"#,
                 colony_mission,
                 kb_context,
                 real_time_context
@@ -685,7 +667,8 @@ impl OpenRouterClient {
                     .user_interactions
                     .first()
                     .unwrap_or(&String::new()),
-                cell_states
+                cell_states,
+                cell_states  // Added this for ENTITY STATES section
             );
 
             println!("\n║ Processing sub-batch of {} cells", chunk.len());
