@@ -1026,12 +1026,13 @@ impl OpenRouterClient {
     FACTORS: [Exactly 3 key factors]
 
     DIMENSIONAL SCORING:
-    - EMERGENT_INTELLIGENCE: <-100 to 100>
-    - RESOURCE_EFFICIENCY: <0 to 100>
-    - NETWORK_COHERENCE: <0 to -100>
-    - GOAL_ALIGNMENT: <0 to 100>
-    - TEMPORAL_RESILIENCE: <0 to 100>
-    - DIMENSIONAL_INTEGRATION: <0 to -100>
+    Each score must be a whole number (no decimals) within the specified range:
+    - EMERGENT_INTELLIGENCE: <Whole number from -100 to 100>
+    - RESOURCE_EFFICIENCY: <Whole number from 0 to 100>
+    - NETWORK_COHERENCE: <Whole number from -100 to 100>
+    - GOAL_ALIGNMENT: <Whole number from 0 to 100>
+    - TEMPORAL_RESILIENCE: <Whole number from 0 to 100>
+    - DIMENSIONAL_INTEGRATION: <Whole number from -100 to 100>
 
     DOPAMINE: <0 to 1>
 
