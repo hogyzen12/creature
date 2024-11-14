@@ -617,6 +617,28 @@ impl OpenRouterClient {
                    - Cascading effects
                    - Action vectors
 
+                4. VISUALIZATION
+                   [ASCII representation showing:]
+                   - Core components
+                   - Dependencies
+                   - Data flows
+                   - Integration points
+                   - System boundaries
+                   - Feedback loops
+    
+                Example format:
+                                                [Core Goal]
+                                                    |
+                                +-------------------+-------------------+
+                                |                   |                   |
+                        [Component A]        [Component B]        [Component C]
+                            |                     |                    |
+                    +-------+-------+      +------+------+     +------+------+
+                    |       |       |      |      |      |     |      |      |
+                [Task 1] [Task 2] [Task 3] ...  ...    ...   ...    ...    ...
+    
+                Use box drawing characters: ─ │ ┌ ┐ └ ┘ ├ ┤ ┬ ┴ ┼
+
                 THOUGHT: [Core insight challenging assumptions] (500+ words)
                 RELEVANCE: <0.0-1.0>
                 FACTORS: [Exactly 3 key factors]
