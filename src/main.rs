@@ -371,7 +371,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         
         {
-            let colony_guard = colony.lock().unwrap();
+            let mut colony_guard = colony.lock().unwrap();
             colony_guard.print_cycle_statistics(current_cycle);
             if let Err(e) = colony_guard.save_state() {
                 eprintln!("Error saving state: {}", e);
