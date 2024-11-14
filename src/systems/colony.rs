@@ -19,7 +19,7 @@ pub struct Colony {
     pub cells: HashMap<Uuid, Cell>,
     pub mission: String,
     pub api_client: OpenRouterClient,
-    pub lenia_world: LeniaWorld,
+    pub cell_positions: HashMap<Uuid, Coordinates>,
 }
 
 impl Colony {
@@ -100,13 +100,11 @@ impl Colony {
 
 
     pub fn new(mission: &str, api_client: OpenRouterClient) -> Self {
-        let lenia_params = LeniaParams::default();
-        let lenia_world = LeniaWorld::new(lenia_params);
         Self {
             cells: HashMap::new(),
             mission: mission.to_string(),
             api_client,
-            lenia_world,
+            cell_positions: HashMap::new(),
         }
     }
 
@@ -609,35 +607,12 @@ impl Colony {
 
         Ok(())
     }
-        pub fn add_cell(&mut self, mut position: Coordinates) -> Uuid {
-        // Initialize heatmap and dimensional scores based on position
-        position.heat = 0.3 + (position.x.abs() + position.y.abs() + position.z.abs()) / 10.0;
-        position.heat = position.heat.clamp(0.0, 1.0);
-        
-        // Initialize dimensional scores with slight variations based on position
-        let base_score = 20.0; // Base score for dimensional values
-        position.emergence_score = base_score * (position.x / 2.0).sin();
-        position.coherence_score = base_score * (position.y / 2.0).cos();
-        position.resilience_score = base_score * (position.z / 2.0).sin();
-        position.intelligence_score = base_score * ((position.x + position.y) / 3.0).cos();
-        position.efficiency_score = base_score * ((position.y + position.z) / 3.0).sin();
-        position.integration_score = base_score * ((position.x + position.z) / 3.0).cos();
-        
+    pub fn add_cell(&mut self, position: Coordinates) -> Uuid {
         let mut cell = Cell::new(position.clone());
-        
-        // Initialize Lenia-related fields
-        cell.lenia_state = self.lenia_world.get_state_at(&position);
-        cell.lenia_influence = 0.5; // Default influence factor
-        
         let id = cell.id;
         self.cells.insert(id, cell);
+        self.cell_positions.insert(id, position);
         self.update_neighbors(id);
-        
-        // Add a small pattern to Lenia world at cell position
-        let mut pattern = Array3::zeros((3, 3, 3));
-        pattern[[1, 1, 1]] = 1.0; // Center point
-        self.lenia_world.add_pattern(&pattern, &position);
-        
         id
     }
 
@@ -813,45 +788,17 @@ impl Colony {
         println!("║   Total Energy: {:.2}", 
             self.lenia_world.grid.iter().sum::<f64>());
         
-        // Clone Lenia world for the blocking task and step
-        let lenia_step = tokio::time::timeout(
-            std::time::Duration::from_secs(10), // 10 second timeout
-            tokio::task::spawn_blocking({
-                let mut lenia_world = self.lenia_world.clone();
-                move || {
-                    lenia_world.step();
-                    lenia_world
-                }
-            })
-        ).await;
-        
-        // Handle the result using a single match expression
-        match lenia_step {
-            Ok(Ok(stepped_world)) => {
-                self.lenia_world = stepped_world;
-                println!("[{}] Lenia simulation advanced successfully", 
-                    chrono::Local::now().format("%H:%M:%S"));
-                    
-                // Log post-step state
-                println!("║ Lenia World State After Step:");
-                println!("║   Active Cells: {}", 
-                    self.lenia_world.grid.iter().filter(|&&x| x > 0.0).count());
-                println!("║   Total Energy: {:.2}", 
-                    self.lenia_world.grid.iter().sum::<f64>());
-            }
-            Ok(Err(e)) => {
-                eprintln!("Error in Lenia step: {:?}", e);
-                return Err(Box::new(std::io::Error::new(
-                    std::io::ErrorKind::Other, 
-                    format!("Lenia step error: {:?}", e)
-                )));
-            }
-            Err(_) => {
-                eprintln!("Lenia simulation step timed out");
-                return Err(Box::new(std::io::Error::new(
-                    std::io::ErrorKind::TimedOut,
-                    "Lenia simulation step timed out"
-                )));
+        // Simple position-based evolution
+        for (id, pos) in self.cell_positions.iter_mut() {
+            if let Some(cell) = self.cells.get_mut(id) {
+                // Update cell energy based on position
+                let position_factor = (pos.x.abs() + pos.y.abs() + pos.z.abs()) / 30.0;
+                cell.energy = (cell.energy + position_factor).clamp(0.0, 100.0);
+                
+                // Update stability based on neighbor count
+                let neighbor_count = cell.neighbors.len() as f64;
+                cell.stability = (cell.stability * 0.9 + (neighbor_count / 10.0).min(1.0) * 0.1)
+                    .clamp(0.0, 1.0);
             }
         }
                 let cell_ids: Vec<Uuid> = self.cells.keys().copied().collect();
