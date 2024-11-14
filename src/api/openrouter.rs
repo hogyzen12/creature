@@ -35,7 +35,6 @@ struct CachedContext {
     timestamp: SystemTime,
 }
 
-#[derive(Default)]
 struct ContextHistory {
     contexts: VecDeque<RealTimeContext>,
     max_size: usize,
@@ -1238,6 +1237,7 @@ impl OpenRouterClient {
             .join("\n---\n");
                 match self.compress_knowledge(&combined_content).await {
             Ok(compressed) => {
+                let file_count = files.len();
                 let kb = KnowledgeBase {
                     compressed_content: compressed,
                     last_updated: Utc::now(),
@@ -1246,7 +1246,7 @@ impl OpenRouterClient {
 
                 if let Ok(mut guard) = self.knowledge_base.lock() {
                     *guard = Some(kb);
-                    println!("Knowledge base initialized with {} files", files.len());
+                    println!("Knowledge base initialized with {} files", file_count);
                     Ok(())
                 } else {
                     Err("Failed to acquire knowledge base lock".into())

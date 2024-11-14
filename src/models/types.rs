@@ -14,6 +14,20 @@ pub struct RealTimeContext {
     pub mission_progress: Vec<String>,
 }
 
+impl Default for RealTimeContext {
+    fn default() -> Self {
+        Self {
+            timestamp: Utc::now(),
+            market_trends: Vec::new(),
+            current_events: Vec::new(),
+            technological_developments: Vec::new(),
+            user_interactions: Vec::new(),
+            environmental_data: HashMap::new(),
+            mission_progress: Vec::new(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DimensionalPosition {
     pub emergence: f64,         // Dimension 1: -100 to 100 (Emergence vs Reduction)
