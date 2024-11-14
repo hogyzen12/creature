@@ -554,6 +554,14 @@ impl OpenRouterClient {
 
                 CURRENT OBJECTIVE: {}
                 KNOWLEDGE CONTEXT: {}
+
+                REAL-TIME CONTEXT:
+                Market Trends: {}
+                Tech Developments: {}
+                Current Events: {}
+                User Interactions: {}
+
+                CELL STATES:
                 {}
 
                 THOUGHT GENERATION RULES:
