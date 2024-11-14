@@ -1181,7 +1181,11 @@ impl OpenRouterClient {
 
         // Validate thought content before returning
         if thought.trim().is_empty() {
-            eprintln!("Error: Empty thought content generated, using placeholder");
+            eprintln!("Error: Empty thought content generated from response:");
+            eprintln!("═══════════════ LLM RESPONSE ═══════════════");
+            eprintln!("{}", response);
+            eprintln!("═══════════════════════════════════════════");
+            eprintln!("Using placeholder thought instead");
             thought = "Exploring system dynamics and adaptation patterns".to_string();
         }
 
