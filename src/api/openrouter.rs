@@ -1051,7 +1051,7 @@ impl OpenRouterClient {
                     .trim_end_matches("**")
                     .trim();
 
-                relevance = match relevance_str.parse() {
+                relevance = match relevance_str.parse::<f64>() {
                     Ok(val) => val.clamp(0.0, 1.0),
                     Err(_) => {
                         eprintln!("Error: Invalid relevance score '{}' for thought, using default 0.5", relevance_str);

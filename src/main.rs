@@ -146,7 +146,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Try loading state from command line arg or default file
     let state_file = matches.value_of("state").unwrap_or("eca_state.json");
     if std::path::Path::new(state_file).exists() {
-        match colony.load_state_from_file(state_file) {
+        match colony.load_state(state_file) {
             Ok(_) => println!("Loaded colony state from {}", state_file),
             Err(e) => eprintln!("Error loading state from {}: {}", state_file, e)
         }
@@ -233,7 +233,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "type": "initialization",
                     "message": format!(
                         "Initialized cell {} of {}:\n  Ca position: ({:.1}, {:.1}, {:.1})\n  Gradient position: ({:.2}, {:.2}, {:.2})\n  Cell ID: {}\n  Initial energy: {:.1}\n  Heat level: {:.2}\n  Dimensional Scores:\n    Emergence: {:.1}\n    Coherence: {:.1}\n    Resilience: {:.1}\n    Intelligence: {:.1}\n    Efficiency: {:.1}\n    Integration: {:.1}\n",
-                        cell_index + 1, INITIAL_CELLS,
+                        cell_index + 1, initial_cells,
                         grid_pos.0, grid_pos.1, grid_pos.2,
                         position.x, position.y, position.z,
                         cell_id,
@@ -261,7 +261,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Wait for all initialization tasks to complete with a timeout
-    let timeout_duration = Duration::from_secs(INITIAL_CELLS as u64 * (CELL_INIT_DELAY_MS / 1000 + 1));
+    let timeout_duration = Duration::from_secs(initial_cells as u64 * (CELL_INIT_DELAY_MS / 1000 + 1));
     match time::timeout(timeout_duration, future::join_all(init_futures)).await {
         Ok(results) => {
             for result in results {
