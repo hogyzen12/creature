@@ -331,11 +331,9 @@ impl Colony {
 
         // Update cells with their new thoughts, adjusting dimensional positions 
         for (cell_id, thoughts) in batch_results {
-            for (thought_content, relevance_score, real_time_factors) in thoughts {
-                // First get a clone of the cell
-                if let Some(cell) = self.cells.get(&cell_id).cloned() {
-                    let mut updated_cell = cell;
-                
+            if let Some(cell) = self.cells.get(&cell_id).cloned() {
+                let mut updated_cell = cell;
+            
                 // Adjust dimensional position based on imbalance
                 let adjustment = 0.1 * (1.0 - imbalance.min(1.0));
                 updated_cell.dimensional_position.resilience += adjustment * -updated_cell.dimensional_position.resilience.signum();
@@ -343,78 +341,79 @@ impl Colony {
                 updated_cell.dimensional_position.efficiency += adjustment * -updated_cell.dimensional_position.efficiency.signum();
                 updated_cell.dimensional_position.integration += adjustment * -updated_cell.dimensional_position.integration.signum();
                 
-                let thought = Thought {
-                    id: Uuid::new_v4().to_string(),
-                    content: thought_content.clone(),
-                    timestamp: Utc::now(),
-                    relevance_score,
-                    context_tags: updated_cell.generate_context_tags(&CellContext {
-                        current_focus: updated_cell.get_current_focus(),
-                        active_research_topics: updated_cell.get_active_research(),
-                        recent_discoveries: updated_cell.get_recent_discoveries(),
-                        collaboration_history: updated_cell.get_collaboration_history(),
-                        performance_metrics: updated_cell.get_performance_metrics(),
-                        evolution_stage: updated_cell.get_evolution_stage(),
-                        energy_level: updated_cell.energy,
-                        dimensional_position: updated_cell.dimensional_position.clone(),
-                        dopamine: updated_cell.dopamine,
-                    }),
-                    real_time_factors,
-                    confidence_score: updated_cell.calculate_confidence_score(&real_time_context),
-                    ascii_visualization: None,
-                    referenced_thoughts: Vec::new(),
-                };
+                for (thought_content, relevance_score, real_time_factors) in thoughts {
+                    let thought = Thought {
+                        id: Uuid::new_v4().to_string(),
+                        content: thought_content.clone(),
+                        timestamp: Utc::now(),
+                        relevance_score,
+                        context_tags: updated_cell.generate_context_tags(&CellContext {
+                            current_focus: updated_cell.get_current_focus(),
+                            active_research_topics: updated_cell.get_active_research(),
+                            recent_discoveries: updated_cell.get_recent_discoveries(),
+                            collaboration_history: updated_cell.get_collaboration_history(),
+                            performance_metrics: updated_cell.get_performance_metrics(),
+                            evolution_stage: updated_cell.get_evolution_stage(),
+                            energy_level: updated_cell.energy,
+                            dimensional_position: updated_cell.dimensional_position.clone(),
+                            dopamine: updated_cell.dopamine,
+                        }),
+                        real_time_factors,
+                        confidence_score: updated_cell.calculate_confidence_score(&real_time_context),
+                        ascii_visualization: None,
+                        referenced_thoughts: Vec::new(),
+                    };
 
-                // Parse dimensional positions from thought content
-                for line in thought_content.lines() {
-                    let line = line.trim();
-                    if line.starts_with("DIMENSIONS:") {
-                        continue;
+                    // Parse dimensional positions from thought content
+                    for line in thought_content.lines() {
+                        let line = line.trim();
+                        if line.starts_with("DIMENSIONS:") {
+                            continue;
+                        }
+                        if line.starts_with("- EMERGENT_INTELLIGENCE:") {
+                            updated_cell.dimensional_position.emergence = line.split(':')
+                                .nth(1)
+                                .and_then(|s| s.trim().parse().ok())
+                                .unwrap_or(0.0);
+                        } else if line.starts_with("- RESOURCE_EFFICIENCY:") {
+                            updated_cell.dimensional_position.efficiency = line.split(':')
+                                .nth(1)
+                                .and_then(|s| s.trim().parse().ok())
+                                .unwrap_or(0.0);
+                        } else if line.starts_with("- NETWORK_COHERENCE:") {
+                            updated_cell.dimensional_position.coherence = line.split(':')
+                                .nth(1)
+                                .and_then(|s| s.trim().parse().ok())
+                                .unwrap_or(0.0);
+                        } else if line.starts_with("- GOAL_ALIGNMENT:") {
+                            updated_cell.dimensional_position.intelligence = line.split(':')
+                                .nth(1)
+                                .and_then(|s| s.trim().parse().ok())
+                                .unwrap_or(0.0);
+                        } else if line.starts_with("- TEMPORAL_RESILIENCE:") {
+                            updated_cell.dimensional_position.resilience = line.split(':')
+                                .nth(1)
+                                .and_then(|s| s.trim().parse().ok())
+                                .unwrap_or(0.0);
+                        } else if line.starts_with("- DIMENSIONAL_INTEGRATION:") {
+                            updated_cell.dimensional_position.integration = line.split(':')
+                                .nth(1)
+                                .and_then(|s| s.trim().parse().ok())
+                                .unwrap_or(0.0);
+                        } else if line.starts_with("DOPAMINE:") {
+                            updated_cell.dopamine = line.split(':')
+                                .nth(1)
+                                .and_then(|s| s.trim().parse().ok())
+                                .unwrap_or(0.5);
+                        }
                     }
-                    if line.starts_with("- EMERGENT_INTELLIGENCE:") {
-                        updated_cell.dimensional_position.emergence = line.split(':')
-                            .nth(1)
-                            .and_then(|s| s.trim().parse().ok())
-                            .unwrap_or(0.0);
-                    } else if line.starts_with("- RESOURCE_EFFICIENCY:") {
-                        updated_cell.dimensional_position.efficiency = line.split(':')
-                            .nth(1)
-                            .and_then(|s| s.trim().parse().ok())
-                            .unwrap_or(0.0);
-                    } else if line.starts_with("- NETWORK_COHERENCE:") {
-                        updated_cell.dimensional_position.coherence = line.split(':')
-                            .nth(1)
-                            .and_then(|s| s.trim().parse().ok())
-                            .unwrap_or(0.0);
-                    } else if line.starts_with("- GOAL_ALIGNMENT:") {
-                        updated_cell.dimensional_position.intelligence = line.split(':')
-                            .nth(1)
-                            .and_then(|s| s.trim().parse().ok())
-                            .unwrap_or(0.0);
-                    } else if line.starts_with("- TEMPORAL_RESILIENCE:") {
-                        updated_cell.dimensional_position.resilience = line.split(':')
-                            .nth(1)
-                            .and_then(|s| s.trim().parse().ok())
-                            .unwrap_or(0.0);
-                    } else if line.starts_with("- DIMENSIONAL_INTEGRATION:") {
-                        updated_cell.dimensional_position.integration = line.split(':')
-                            .nth(1)
-                            .and_then(|s| s.trim().parse().ok())
-                            .unwrap_or(0.0);
-                    } else if line.starts_with("DOPAMINE:") {
-                        updated_cell.dopamine = line.split(':')
-                            .nth(1)
-                            .and_then(|s| s.trim().parse().ok())
-                            .unwrap_or(0.5);
+                    
+                    updated_cell.thoughts.push_back(thought);
+                    if let Err(e) = updated_cell.check_and_compress_memories(&self.api_client).await {
+                        eprintln!("Error compressing memories: {}", e);
                     }
                 }
-                
-                updated_cell.thoughts.push_back(thought);
-                if let Err(e) = updated_cell.check_and_compress_memories(&self.api_client).await {
-                    eprintln!("Error compressing memories: {}", e);
-                }
-                
-                // Finally insert the updated cell back into the HashMap
+                // Insert the updated cell back into the HashMap
                 self.cells.insert(cell_id, updated_cell);
             }
         }
