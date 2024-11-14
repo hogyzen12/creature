@@ -986,33 +986,51 @@ impl Colony {
         self.plan_leaderboard.clear();
         
         for (id, cell) in &self.cells {
-            if let Some(plan) = &cell.current_plan {
-                // Count total thoughts in plan
-                let thought_count = plan.thoughts.len();
-                
-                // Count unique collaborating cells
-                let unique_collaborators = plan.participating_cells
-                    .iter()
-                    .filter(|&&cell_id| cell_id != *id)
-                    .count();
-                
-                self.plan_leaderboard.insert(*id, (thought_count, unique_collaborators));
-            }
+            // Get metrics from current plan if it exists
+            let (current_thoughts, current_collabs) = if let Some(plan) = &cell.current_plan {
+                (
+                    plan.thoughts.len(),
+                    plan.participating_cells
+                        .iter()
+                        .filter(|&&cell_id| cell_id != *id)
+                        .count()
+                )
+            } else {
+                (0, 0)
+            };
+
+            // Add historical thought count from cell's thought history
+            let total_thoughts = current_thoughts + cell.thoughts.len();
+            
+            // Track the highest metrics seen
+            self.plan_leaderboard.insert(*id, (total_thoughts, current_collabs));
         }
     }
 
     pub fn print_leaderboard(&self) {
+        if self.plan_leaderboard.is_empty() {
+            println!("\n╔════════════════════ COLONY LEADERBOARD ═══════════════════╗");
+            println!("║                No data available yet                      ║");
+            println!("╚════════════════════════════════════════════════════════════╝\n");
+            return;
+        }
+
         println!("\n╔════════════════════ COLONY LEADERBOARD ═══════════════════╗");
         
-        // Sort by thought count
-        let mut thought_leaders: Vec<_> = self.plan_leaderboard.iter().collect();
-        thought_leaders.sort_by(|a, b| b.1.0.cmp(&a.1.0));
+        // Pre-sort leaders for efficiency
+        let mut leaders: Vec<_> = self.plan_leaderboard.iter().collect();
         
-        println!("║ Top Plans by Thought Count:");
+        // Sort by thought count (primary) and collaborators (secondary)
+        leaders.sort_by(|a, b| {
+            b.1.0.cmp(&a.1.0)
+                .then_with(|| b.1.1.cmp(&a.1.1))
+        });
+        
+        println!("║ Top Cells by Total Thoughts:");
         println!("║ ┌────────────────┬───────────┬─────────────────┐");
         println!("║ │ Cell ID        │ Thoughts  │ Collaborators   │");
         println!("║ ├────────────────┼───────────┼─────────────────┤");
-        for (i, (id, (thoughts, collabs))) in thought_leaders.iter().take(5).enumerate() {
+        for (i, (id, (thoughts, collabs))) in leaders.iter().take(5).enumerate() {
             println!("║ │ {:<14} │ {:<9} │ {:<15} │", 
                 format!("{}.", i+1) + &id.to_string()[..8],
                 thoughts,
@@ -1021,16 +1039,18 @@ impl Colony {
         }
         println!("║ └────────────────┴───────────┴─────────────────┘");
         
-        // Sort by collaboration count
-        let mut collab_leaders: Vec<_> = self.plan_leaderboard.iter().collect();
-        collab_leaders.sort_by(|a, b| b.1.1.cmp(&a.1.1));
+        // Re-sort by collaboration count (primary) and thoughts (secondary)
+        leaders.sort_by(|a, b| {
+            b.1.1.cmp(&a.1.1)
+                .then_with(|| b.1.0.cmp(&a.1.0))
+        });
         
         println!("║");
-        println!("║ Top Plans by Collaboration Count:");
+        println!("║ Top Cells by Collaboration Count:");
         println!("║ ┌────────────────┬───────────┬─────────────────┐");
         println!("║ │ Cell ID        │ Thoughts  │ Collaborators   │");
         println!("║ ├────────────────┼───────────┼─────────────────┤");
-        for (i, (id, (thoughts, collabs))) in collab_leaders.iter().take(5).enumerate() {
+        for (i, (id, (thoughts, collabs))) in leaders.iter().take(5).enumerate() {
             println!("║ │ {:<14} │ {:<9} │ {:<15} │",
                 format!("{}.", i+1) + &id.to_string()[..8],
                 thoughts,
@@ -1038,6 +1058,18 @@ impl Colony {
             );
         }
         println!("║ └────────────────┴───────────┴─────────────────┘");
+        
+        // Add summary statistics
+        let total_thoughts: usize = self.plan_leaderboard.values().map(|(t, _)| t).sum();
+        let total_collabs: usize = self.plan_leaderboard.values().map(|(_, c)| c).sum();
+        let avg_thoughts = total_thoughts as f64 / self.plan_leaderboard.len() as f64;
+        let avg_collabs = total_collabs as f64 / self.plan_leaderboard.len() as f64;
+        
+        println!("║");
+        println!("║ Colony Statistics:");
+        println!("║ ├── Average Thoughts per Cell: {:.1}", avg_thoughts);
+        println!("║ └── Average Collaborations: {:.1}", avg_collabs);
+        
         println!("╚════════════════════════════════════════════════════════════╝\n");
     }
 
