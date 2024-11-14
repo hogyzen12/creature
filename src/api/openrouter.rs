@@ -489,7 +489,7 @@ impl OpenRouterClient {
         let mut results = self.generate_contextual_thoughts_batch(&[(Uuid::new_v4(), cell_context)], real_time_context, colony_mission).await?;
         
         // Take the first result from the batch
-        if let Some((_, thoughts)) = results.pop_first() {
+        if let Some((_, thoughts)) = results.iter().next().map(|(k,v)| (k,v.clone())) {
             if let Some(thought) = thoughts.into_iter().next() {
                 return Ok(thought);
             }
@@ -1361,7 +1361,7 @@ impl OpenRouterClient {
             let mut current_relevance = 0.5;
             let mut current_factors = Vec::new();
             let mut in_thought = false;
-            let mut thought_buffer = Vec::new();
+            let mut thought_buffer = String::new();
 
             while let Some(line) = lines.next() {
                 let line = line.trim();
@@ -1388,9 +1388,9 @@ impl OpenRouterClient {
 
                 if line.contains("**CONVENTIONAL VIEW:**") || line.contains("**RADICAL SHIFT:**") {
                     if !thought_buffer.is_empty() {
-                        thought_buffer.push("\n");
+                        thought_buffer.push('\n');
                     }
-                    thought_buffer.push(line.trim_matches('*').trim().to_string());
+                    thought_buffer.push_str(line.trim_matches('*').trim());
                     continue;
                 }
 
@@ -1399,7 +1399,7 @@ impl OpenRouterClient {
                     if let Some(content) = line.split(':').nth(1) {
                         let cleaned = content.trim();
                         if !cleaned.is_empty() {
-                            thought_buffer.push(cleaned.to_string());
+                            thought_buffer.push_str(cleaned);
                         }
                     }
                     continue;
@@ -1448,7 +1448,7 @@ impl OpenRouterClient {
                    !line.to_uppercase().contains("RELEVANCE") &&
                    !line.to_uppercase().contains("FACTORS") {
                     if !line.trim().is_empty() {
-                        thought_buffer.push(line.trim().to_string());
+                        thought_buffer.push_str(line.trim());
                     }
                 }
             }
