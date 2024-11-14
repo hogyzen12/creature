@@ -1000,7 +1000,7 @@ impl Colony {
             total_cycles: 0,
             mission: self.mission.clone(),
             lenia_world: Some(LeniaWorldState {
-                grid: self.lenia_world.grid.into_raw_vec(),
+                grid: self.lenia_world.grid.clone().into_raw_vec(),
                 size: self.lenia_world.grid.shape()[0],
                 growth_mu: self.lenia_world.params.growth_mu,
                 growth_sigma: self.lenia_world.params.growth_sigma,
