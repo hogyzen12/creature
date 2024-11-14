@@ -25,7 +25,7 @@ pub fn update_stats_line(stats: &str, mission: Option<&str>) {
     let _ = std::io::stdout().flush(); // Ensure output is flushed
 }
 
-pub fn print_banner(mission: &str) -> usize {
+pub fn print_banner(mission: &str, name: &str) -> usize {
     println!("{}", format!(r#"
     ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
  ██████╗██████╗ ███████╗ █████╗ ████████╗██╗   ██╗██████╗ ███████╗▀▀
@@ -40,7 +40,8 @@ pub fn print_banner(mission: &str) -> usize {
      │  U P  N E O . . │  |、˜〵      /system.mind.based/
      └──────────────────┘   じしˍ,)ノ  [based::maximized]
 
-    MISSION: {}"#, mission).cyan());
+    MISSION: {}
+    NAME: {}"#, mission, name).cyan());
 
     let line_num = r#"
  ██████╗██████╗ ███████╗ █████╗ ████████╗██╗   ██╗██████╗ ███████╗

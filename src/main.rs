@@ -286,7 +286,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Cellular initialization complete!");
 
-    crate::utils::logging::print_banner(&mission);
+    crate::utils::logging::print_banner(&mission, colony_name);
 
     'main: while current_cycle < simulation_cycles && running.load(Ordering::SeqCst) {
         let stats = {
