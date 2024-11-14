@@ -565,10 +565,10 @@ impl Cell {
         let efficiency_adj = (dimension_adjustment * 10.0) as i32;
         
         // Apply adjustments and clamp to 0-100 range
-        self.dimensional_position.emergence = (self.dimensional_position.emergence + emergence_adj).clamp(0, 100);
-        self.dimensional_position.coherence = (self.dimensional_position.coherence + coherence_adj).clamp(0, 100);
-        self.dimensional_position.intelligence = (self.dimensional_position.intelligence + intelligence_adj).clamp(0, 100);
-        self.dimensional_position.efficiency = (self.dimensional_position.efficiency + efficiency_adj).clamp(0, 100);
+        self.dimensional_position.emergence = (self.dimensional_position.emergence + emergence_adj as f64).clamp(0.0, 100.0);
+        self.dimensional_position.coherence = (self.dimensional_position.coherence + coherence_adj as f64).clamp(0.0, 100.0);
+        self.dimensional_position.intelligence = (self.dimensional_position.intelligence + intelligence_adj as f64).clamp(0.0, 100.0);
+        self.dimensional_position.efficiency = (self.dimensional_position.efficiency + efficiency_adj as f64).clamp(0.0, 100.0);
         
         // Adjust dopamine based on context alignment
         self.dopamine = self.dopamine * 0.9 + self.context_alignment_score * 0.1;
