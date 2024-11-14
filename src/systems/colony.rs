@@ -332,7 +332,8 @@ impl Colony {
             (batch_results.len() as f64 / cell_contexts.len() as f64) * 100.0);
 
         // Update cells with their new thoughts, adjusting dimensional positions 
-        for (cell_id, (thought_content, relevance_score, real_time_factors)) in batch_results {
+        for (cell_id, thoughts) in batch_results {
+            for (thought_content, relevance_score, real_time_factors) in thoughts {
             // First get a clone of the cell
             if let Some(cell) = self.cells.get(&cell_id).cloned() {
                 let mut updated_cell = cell;
@@ -345,7 +346,7 @@ impl Colony {
                 updated_cell.dimensional_position.integration += adjustment * -updated_cell.dimensional_position.integration.signum();
                 
                 let thought = Thought {
-                    id: Uuid::new_v4(),
+                    id: Uuid::new_v4().to_string(),
                     content: thought_content.clone(),
                     timestamp: Utc::now(),
                     relevance_score,
@@ -362,6 +363,8 @@ impl Colony {
                     }),
                     real_time_factors,
                     confidence_score: updated_cell.calculate_confidence_score(&real_time_context),
+                    ascii_visualization: None,
+                    referenced_thoughts: Vec::new(),
                 };
 
                 // Parse dimensional positions from thought content
@@ -1190,12 +1193,12 @@ impl Colony {
                 let integration_adj = (adjustment_factor * 9.0) as i32;
 
                 // Apply adjustments and clamp to 0-100 range
-                cell.dimensional_position.emergence = (cell.dimensional_position.emergence + emergence_adj).clamp(0, 100);
-                cell.dimensional_position.coherence = (cell.dimensional_position.coherence + coherence_adj).clamp(0, 100);
-                cell.dimensional_position.resilience = (cell.dimensional_position.resilience + resilience_adj).clamp(0, 100);
-                cell.dimensional_position.intelligence = (cell.dimensional_position.intelligence + intelligence_adj).clamp(0, 100);
-                cell.dimensional_position.efficiency = (cell.dimensional_position.efficiency + efficiency_adj).clamp(0, 100);
-                cell.dimensional_position.integration = (cell.dimensional_position.integration + integration_adj).clamp(0, 100);
+                cell.dimensional_position.emergence = ((cell.dimensional_position.emergence as i32 + emergence_adj) as f64).clamp(0.0, 100.0);
+                cell.dimensional_position.coherence = ((cell.dimensional_position.coherence as i32 + coherence_adj) as f64).clamp(0.0, 100.0);
+                cell.dimensional_position.resilience = ((cell.dimensional_position.resilience as i32 + resilience_adj) as f64).clamp(0.0, 100.0);
+                cell.dimensional_position.intelligence = ((cell.dimensional_position.intelligence as i32 + intelligence_adj) as f64).clamp(0.0, 100.0);
+                cell.dimensional_position.efficiency = ((cell.dimensional_position.efficiency as i32 + efficiency_adj) as f64).clamp(0.0, 100.0);
+                cell.dimensional_position.integration = ((cell.dimensional_position.integration as i32 + integration_adj) as f64).clamp(0.0, 100.0);
 
                 println!("Cell {} dimensional audit:", cell_id);
                 println!("  Plan execution rate: {:.1}%", execution_rate * 100.0);

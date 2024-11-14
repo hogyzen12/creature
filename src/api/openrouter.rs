@@ -480,6 +480,24 @@ impl OpenRouterClient {
         Ok(context)
     }
 
+    pub async fn generate_contextual_thought(
+        &self,
+        cell_context: &CellContext,
+        real_time_context: &RealTimeContext,
+        colony_mission: &str,
+    ) -> Result<(String, f64, Vec<String>), Box<dyn std::error::Error>> {
+        let mut results = self.generate_contextual_thoughts_batch(&[(Uuid::new_v4(), cell_context)], real_time_context, colony_mission).await?;
+        
+        // Take the first result from the batch
+        if let Some((_, thoughts)) = results.pop_first() {
+            if let Some(thought) = thoughts.into_iter().next() {
+                return Ok(thought);
+            }
+        }
+        
+        Err("Failed to generate thought".into())
+    }
+
     pub async fn generate_contextual_thoughts_batch(
         &self,
         cell_contexts: &[(Uuid, &CellContext)],
