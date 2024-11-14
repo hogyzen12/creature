@@ -76,8 +76,25 @@ impl OpenRouterClient {
 
     async fn get_trending_topics(&self) -> Result<Vec<String>, Box<dyn std::error::Error>> {
         let _rng = rand::thread_rng();
-        // watch for grok limits 992 
-        let response = self
+        
+        // Rate limiting
+        static LAST_REQUEST: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        
+        let last = LAST_REQUEST.load(std::sync::atomic::Ordering::Relaxed);
+        if now - last < 60 { // 1 minute cooldown
+            return Ok(vec!["Rate limited - using cached topics".to_string()]);
+        }
+        
+        LAST_REQUEST.store(now, std::sync::atomic::Ordering::Relaxed);
+        
+        // Add timeout
+        let response = tokio::time::timeout(
+            Duration::from_secs(30),
+            self
             .client
             .post(&format!("{}/chat/completions", self.base_url))
             .header("Authorization", format!("Bearer {}", self.api_key))
@@ -249,15 +266,19 @@ impl OpenRouterClient {
         &self,
         cell_thoughts: Option<Vec<String>>,
     ) -> Result<RealTimeContext, Box<dyn std::error::Error>> {
-        if let Some(cached) = self.context_cache.lock().unwrap().as_ref() {
-            if cached
-                .timestamp
-                .elapsed()
-                .unwrap_or(Duration::from_secs(360))
-                < Duration::from_secs(300)
-            {
-                return Ok(cached.context.clone());
+        // Try to get cached context with proper error handling
+        let should_refresh = {
+            let cache = self.context_cache.lock().map_err(|e| format!("Cache lock error: {}", e))?;
+            match cache.as_ref() {
+                Some(cached) if cached.timestamp.elapsed().map(|d| d < Duration::from_secs(300)).unwrap_or(false) => {
+                    return Ok(cached.context.clone());
+                }
+                _ => true
             }
+        };
+
+        if !should_refresh {
+            return Ok(RealTimeContext::default());
         }
 
         // Get previous contexts for comparison
@@ -404,25 +425,34 @@ impl OpenRouterClient {
             timestamp: now,
         });
 
-        // Update history with timestamp
+        // Update history with timestamp and better deduplication
         {
-            let mut history = self.context_history.lock().unwrap();
-            history.contexts.push_back(context.clone());
+            let mut history = self.context_history.lock().map_err(|e| format!("History lock error: {}", e))?;
+            
+            // Clean up old contexts first
+            let cutoff = Utc::now() - chrono::Duration::hours(24);
+            while history.contexts.front().map(|c| c.timestamp < cutoff).unwrap_or(false) {
+                history.contexts.pop_front();
+            }
+            
+            // Deduplicate new context before adding
+            let mut seen_topics = std::collections::HashSet::new();
+            let mut clean_context = context.clone();
+            
+            clean_context.market_trends.retain(|t| seen_topics.insert(normalize_topic(t)));
+            clean_context.technological_developments.retain(|t| seen_topics.insert(normalize_topic(t)));
+            clean_context.current_events.retain(|t| seen_topics.insert(normalize_topic(t)));
+            clean_context.user_interactions.retain(|t| seen_topics.insert(normalize_topic(t)));
+            
+            history.contexts.push_back(clean_context.clone());
             history.last_update = Utc::now();
             
-            // Remove old contexts beyond max size
+            // Enforce max size
             while history.contexts.len() > history.max_size {
                 history.contexts.pop_front();
             }
             
-            // Remove duplicate topics across all contexts
-            let mut seen_topics = std::collections::HashSet::new();
-            for ctx in history.contexts.iter_mut() {
-                ctx.market_trends.retain(|t| seen_topics.insert(t.to_lowercase()));
-                ctx.technological_developments.retain(|t| seen_topics.insert(t.to_lowercase()));
-                ctx.current_events.retain(|t| seen_topics.insert(t.to_lowercase()));
-                ctx.user_interactions.retain(|t| seen_topics.insert(t.to_lowercase()));
-            }
+            context = clean_context; // Use deduplicated context
         }
 
         Ok(context)
@@ -1724,3 +1754,10 @@ impl OpenRouterClient {
     }
 }
 
+fn normalize_topic(topic: &str) -> String {
+    topic.trim()
+        .to_lowercase()
+        .chars()
+        .filter(|c| c.is_alphanumeric() || c.is_whitespace())
+        .collect()
+}
