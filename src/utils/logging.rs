@@ -1,6 +1,7 @@
 use chrono::Local;
 use colored::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::io::Write;
 
 static STATS_LINE: AtomicUsize = AtomicUsize::new(0);
 
@@ -24,8 +25,8 @@ pub fn update_stats_line(stats: &str, mission: Option<&str>) {
     let _ = std::io::stdout().flush(); // Ensure output is flushed
 }
 
-pub fn print_banner() -> usize {
-    println!("{}", r#"
+pub fn print_banner(mission: &str) -> usize {
+    println!("{}", format!(r#"
     ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
  ██████╗██████╗ ███████╗ █████╗ ████████╗██╗   ██╗██████╗ ███████╗▀▀
 ██╔════╝██╔══██╗██╔════╝██╔══██╗╚══██╔══╝██║   ██║██╔══██╗██╔════╝░░
@@ -39,7 +40,7 @@ pub fn print_banner() -> usize {
      │  U P  N E O . . │  |、˜〵      /system.mind.based/
      └──────────────────┘   じしˍ,)ノ  [based::maximized]
 
-    MISSION: {}"#.cyan(), mission);
+    MISSION: {}"#, mission).cyan());
 
     let line_num = r#"
  ██████╗██████╗ ███████╗ █████╗ ████████╗██╗   ██╗██████╗ ███████╗
