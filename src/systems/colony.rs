@@ -318,7 +318,7 @@ impl Colony {
             chrono::Local::now().format("%H:%M:%S"));
         let batch_results = match tokio::time::timeout(
             std::time::Duration::from_secs(300), // Reduced timeout
-            self.api_client.generate_contextual_thoughts_batch(&cell_context_refs, &real_time_context, &self.mission)
+            self.api_client.generate_contextual_thoughts_batch(&cell_context_refs, &real_time_context, &self.mission, &[])
         ).await {
             Ok(result) => match result {
                 Ok(batch) => batch,
