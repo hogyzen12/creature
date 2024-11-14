@@ -525,7 +525,16 @@ impl Colony {
                     id: Uuid::new_v4(),
                     thoughts: combined_thoughts.clone(),
                     nodes: plan_result.nodes.clone(),
-                    summary: plan_result.summary.clone(),
+                    summary: if plan_result.summary.is_empty() {
+                        // Generate a summary from the thoughts if none provided
+                        combined_thoughts.iter()
+                            .take(3)
+                            .map(|t| t.content.lines().next().unwrap_or("").to_string())
+                            .collect::<Vec<_>>()
+                            .join(" | ")
+                    } else {
+                        plan_result.summary.clone()
+                    },
                     score: plan_score,
                     participating_cells: std::iter::once(cell_id)
                         .chain(cell.neighbors.iter().cloned())
