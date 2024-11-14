@@ -113,6 +113,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .value_name("NAME")
             .help("Sets the colony's name")
             .takes_value(true))
+        .arg(Arg::with_name("state")
+            .short('s')
+            .long("state")
+            .value_name("STATE_FILE")
+            .help("Load initial state from file")
+            .takes_value(true))
         .get_matches();
 
     let mission = matches.value_of("mission")
@@ -125,10 +131,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let api_client = api::openrouter::OpenRouterClient::new(api_key.clone())
         .map_err(|e| e as Box<dyn std::error::Error>)?;
-    let colony = Colony::new(mission, api_client);
+    let mut colony = Colony::new(mission, api_client);
     
-    if let Err(e) = colony.save_state_to_file("eca_state.json") {
-        eprintln!("Error creating initial state file: {}", e);
+    // Try loading state from command line arg or default file
+    let state_file = matches.value_of("state").unwrap_or("eca_state.json");
+    if std::path::Path::new(state_file).exists() {
+        match colony.load_state_from_file(state_file) {
+            Ok(_) => println!("Loaded colony state from {}", state_file),
+            Err(e) => eprintln!("Error loading state from {}: {}", state_file, e)
+        }
+    } else {
+        if let Err(e) = colony.save_state_to_file("eca_state.json") {
+            eprintln!("Error creating initial state file: {}", e);
+        }
     }
     
     let colony = Arc::new(Mutex::new(colony));
