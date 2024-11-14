@@ -20,6 +20,9 @@ pub struct CellState {
     pub mission_alignment_score: f64,
     pub lenia_state: f64,
     pub lenia_influence: f64,
+    pub x: f64,
+    pub y: f64, 
+    pub z: f64,
 }
 
 #[derive(Serialize, Deserialize)]

@@ -956,6 +956,11 @@ impl Colony {
                     phase: cell.phase,
                     context_alignment_score: cell.context_alignment_score,
                     mission_alignment_score: cell.mission_alignment_score,
+                    lenia_state: cell.lenia_state,
+                    lenia_influence: cell.lenia_influence,
+                    x: cell.position.x,
+                    y: cell.position.y,
+                    z: cell.position.z,
                 })
             })
             .collect();
