@@ -508,10 +508,19 @@ impl OpenRouterClient {
         let sub_batch_size = 3;
         let mut all_results = HashMap::new();
 
+        // Collect recent thoughts from all cells
+        let mut all_recent_thoughts = Vec::new();
+        for cell in self.cells.values() {
+            all_recent_thoughts.extend(cell.thoughts.iter()
+                .rev()
+                .take(10)
+                .cloned());
+        }
+
         // Format recent thoughts context
-        let recent_thoughts_context = if !recent_thoughts.is_empty() {
+        let recent_thoughts_context = if !all_recent_thoughts.is_empty() {
             format!("\nRECENT COLONY THOUGHTS:\n{}", 
-                recent_thoughts.iter()
+                all_recent_thoughts.iter()
                     .take(10)
                     .map(|t| format!("- [{}] {}", t.id, t.content))
                     .collect::<Vec<_>>()
@@ -548,10 +557,15 @@ impl OpenRouterClient {
                 {}
 
                 THOUGHT GENERATION RULES:
-                1. Generate thoughts that are DISTINCTLY DIFFERENT from recent colony thoughts
-                2. Avoid repeating similar concepts or conclusions
-                3. Explore new angles and perspectives
-                4. Build upon but don't duplicate existing insights
+                1. DO NOT DUPLICATE OR CLOSELY MIRROR ANY RECENT COLONY THOUGHTS
+                2. Each thought must explore completely new territory
+                3. If a thought seems similar to an existing one, take a radically different approach
+                4. Build upon but transform existing insights into novel directions
+                5. Explicitly avoid repeating:
+                   - Core concepts from recent thoughts
+                   - Similar conclusions or recommendations
+                   - Related technical approaches
+                   - Parallel solution paths
 
                 ENVIRONMENTAL SIGNALS:
                 1. SYSTEM DYNAMICS
