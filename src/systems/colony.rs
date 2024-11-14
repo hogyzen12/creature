@@ -47,22 +47,44 @@ impl Colony {
         // Process each cell directly in self.cells
         for &cell_id in cell_ids {
             if let Some(cell) = self.cells.get_mut(&cell_id) {
-                match tokio::time::timeout(
-                    std::time::Duration::from_secs(180),
-                    cell.generate_thought(&self.api_client, &self.mission)
-                ).await {
-                    Ok(Ok(_)) => {
-                        success_count += 1;
-                        log_success(&format!("Generated thought for cell {}", cell_id));
+                let mut retries = 3;
+                let mut delay = std::time::Duration::from_secs(1);
+                
+                while retries > 0 {
+                    match tokio::time::timeout(
+                        std::time::Duration::from_secs(180),
+                        cell.generate_thought(&self.api_client, &self.mission)
+                    ).await {
+                        Ok(Ok(_)) => {
+                            success_count += 1;
+                            log_success(&format!("Generated thought for cell {}", cell_id));
+                            break;
+                        }
+                        Ok(Err(e)) => {
+                            if e.to_string().contains("unexpected EOF during chunk size line") {
+                                log_warning(&format!("EOF error for cell {}, retrying... ({} attempts left)", cell_id, retries - 1));
+                                retries -= 1;
+                                if retries > 0 {
+                                    tokio::time::sleep(delay).await;
+                                    delay *= 2; // Exponential backoff
+                                    continue;
+                                }
+                            }
+                            error_count += 1;
+                            log_error(&format!("Error generating thought for cell {}: {}", cell_id, e));
+                            break;
+                        }
+                        Err(_) => {
+                            timeout_count += 1;
+                            log_error(&format!("Timeout generating thought for cell {}", cell_id));
+                            break;
+                        }
                     }
-                    Ok(Err(e)) => {
-                        error_count += 1;
-                        log_error(&format!("Error generating thought for cell {}: {}", cell_id, e));
-                    }
-                    Err(_) => {
-                        timeout_count += 1;
-                        log_error(&format!("Timeout generating thought for cell {}", cell_id));
-                    }
+                }
+                
+                if retries == 0 {
+                    error_count += 1;
+                    log_error(&format!("Failed to generate thought for cell {} after all retries", cell_id));
                 }
             } else {
                 log_error(&format!("Cell {} not found", cell_id));
