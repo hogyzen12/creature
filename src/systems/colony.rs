@@ -1352,5 +1352,3 @@ fn calculate_distance(pos1: &Coordinates, pos2: &Coordinates) -> f64 {
      (pos2.y - pos1.y).powi(2) + 
      (pos2.z - pos1.z).powi(2)).sqrt()
 }
-
-
