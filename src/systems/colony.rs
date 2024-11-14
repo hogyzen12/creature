@@ -1360,6 +1360,3 @@ fn calculate_distance(pos1: &Coordinates, pos2: &Coordinates) -> f64 {
 
 
 
-
-
-
