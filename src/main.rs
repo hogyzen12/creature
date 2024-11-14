@@ -21,7 +21,7 @@ use serde_json::json;
 use tokio::sync::mpsc::{self, Sender};
 
 
-const INITIAL_CELLS: usize = 10;
+const DEFAULT_INITIAL_CELLS: usize = 32;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -119,7 +119,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .value_name("STATE_FILE")
             .help("Load initial state from file")
             .takes_value(true))
+        .arg(Arg::with_name("cells")
+            .short('c')
+            .long("cells")
+            .value_name("COUNT")
+            .help("Sets the initial number of cells")
+            .takes_value(true))
         .get_matches();
+
+    let initial_cells = matches.value_of("cells")
+        .and_then(|c| c.parse().ok())
+        .unwrap_or(DEFAULT_INITIAL_CELLS);
 
     let mission = matches.value_of("mission")
         .unwrap_or("Develop innovative AI collaboration systems with focus on real-time adaptation")
@@ -173,7 +183,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut init_futures = Vec::new();
 
     // Spawn cell initialization tasks
-    for cell_index in 0..INITIAL_CELLS {
+    for cell_index in 0..initial_cells {
         if !running.load(Ordering::SeqCst) {
             break;
         }
