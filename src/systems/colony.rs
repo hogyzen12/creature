@@ -998,6 +998,12 @@ impl Colony {
             cells: cell_states,
             total_cycles: 0,
             mission: self.mission.clone(),
+            lenia_world: Some(LeniaWorldState {
+                grid: self.lenia_world.grid.as_slice().to_vec(),
+                size: self.lenia_world.grid.shape()[0],
+                growth_mu: self.lenia_world.params.growth_mu,
+                growth_sigma: self.lenia_world.params.growth_sigma,
+            }),
             energy_grid: EnergyGridState {
                 size: grid_size,
                 grid,

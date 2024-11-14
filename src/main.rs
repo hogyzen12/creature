@@ -34,7 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let r = running.clone();
     let r2 = running.clone();
 
-    let (shutdown_tx, shutdown_rx) = tokio::sync::broadcast::channel(1);
+    let (shutdown_tx, _shutdown_rx) = tokio::sync::broadcast::channel(1);
     let shutdown_tx_clone = shutdown_tx.clone();
 
     // Handle both Ctrl+C and SIGTERM
