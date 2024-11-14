@@ -941,7 +941,35 @@ impl Colony {
     }
 
     pub fn save_state_to_file(&self, filename: &str) -> Result<(), Box<dyn std::error::Error>> {
-        use crate::models::state::{ColonyState, CellState};
+        use crate::models::state::{ColonyState, CellState, EnergyGridState};
+        
+        // Calculate grid size based on cell positions
+        let max_coord = self.cells.values()
+            .flat_map(|cell| vec![
+                (cell.position.x * 2.0) as usize,
+                (cell.position.y * 2.0) as usize,
+                (cell.position.z * 2.0) as usize
+            ])
+            .max()
+            .unwrap_or(0) + 1;
+        
+        let grid_size = max_coord + 1;
+        let total_size = grid_size * grid_size * grid_size;
+        let mut grid = vec![0.0; total_size];
+        let mut cell_positions = HashMap::new();
+        
+        // Map cells to grid positions and store energy values
+        for (id, cell) in &self.cells {
+            let x = (cell.position.x * 2.0) as usize;
+            let y = (cell.position.y * 2.0) as usize;
+            let z = (cell.position.z * 2.0) as usize;
+            
+            let idx = z * grid_size * grid_size + y * grid_size + x;
+            if idx < total_size {
+                grid[idx] = cell.energy;
+                cell_positions.insert(*id, (x, y, z));
+            }
+        }
         
         let cell_states: HashMap<Uuid, CellState> = self.cells.iter()
             .map(|(id, cell)| {
@@ -968,8 +996,13 @@ impl Colony {
         let state = ColonyState {
             timestamp: Utc::now(),
             cells: cell_states,
-            total_cycles: 0, // You may want to track this separately
+            total_cycles: 0,
             mission: self.mission.clone(),
+            energy_grid: EnergyGridState {
+                size: grid_size,
+                grid,
+                cell_positions,
+            },
         };
 
         state.save_to_file(Path::new(filename))?;

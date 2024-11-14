@@ -32,6 +32,14 @@ pub struct ColonyState {
     pub total_cycles: u32,
     pub mission: String,
     pub lenia_world: Option<LeniaWorldState>,
+    pub energy_grid: EnergyGridState,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct EnergyGridState {
+    pub size: usize,
+    pub grid: Vec<f64>,  // Flattened 3D array of energy values
+    pub cell_positions: HashMap<Uuid, (usize, usize, usize)>, // Maps cell IDs to grid coordinates
 }
 
 #[derive(Serialize, Deserialize)]
