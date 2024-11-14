@@ -1243,7 +1243,7 @@ impl Colony {
 
         stats
     }
-        pub fn get_cell_batch(&self, cell_ids: &[Uuid]) -> Vec<Cell> {
+    pub fn get_cell_batch(&self, cell_ids: &[Uuid]) -> Vec<Cell> {
         cell_ids.iter()
             .filter_map(|id| self.cells.get(id))
             .cloned()
