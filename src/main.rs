@@ -21,7 +21,7 @@ use serde_json::json;
 use tokio::sync::mpsc::{self, Sender};
 
 
-const INITIAL_CELLS: usize = 128;
+const INITIAL_CELLS: usize = 10;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
