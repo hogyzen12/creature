@@ -1278,17 +1278,26 @@ impl OpenRouterClient {
                 // Detect thought section with flexible markers
                 if line.to_uppercase().contains("THOUGHT") && line.contains(':') {
                     in_thought = true;
+                    if let Some(content) = line.split(':').nth(1) {
+                        let cleaned = content.trim();
+                        if !cleaned.is_empty() {
+                            thought_buffer.push(cleaned.to_string());
+                        }
+                    }
                     continue;
                 }
 
                 // Parse relevance with improved number extraction
                 if line.to_uppercase().contains("RELEVANCE") {
-                    if let Some(value) = line
-                        .split(|c: char| !c.is_ascii_digit() && c != '.' && c != '-')
-                        .find(|s| !s.is_empty())
-                        .and_then(|s| s.parse::<f64>().ok()) 
-                    {
-                        current_relevance = value.clamp(0.0, 1.0);
+                    if let Some(value_str) = line.split(':').nth(1) {
+                        if let Some(value) = value_str
+                            .trim()
+                            .split_whitespace()
+                            .next()
+                            .and_then(|s| s.parse::<f64>().ok())
+                        {
+                            current_relevance = value.clamp(0.0, 1.0);
+                        }
                     }
                     continue;
                 }
@@ -1320,8 +1329,12 @@ impl OpenRouterClient {
                 // Collect thought content
                 if in_thought && 
                    !line.to_uppercase().contains("DIMENSION") && 
-                   !line.to_uppercase().contains("DOPAMINE") {
-                    thought_buffer.push(line);
+                   !line.to_uppercase().contains("DOPAMINE") &&
+                   !line.to_uppercase().contains("RELEVANCE") &&
+                   !line.to_uppercase().contains("FACTORS") {
+                    if !line.trim().is_empty() {
+                        thought_buffer.push(line.trim());
+                    }
                 }
             }
 
