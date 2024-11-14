@@ -1,3 +1,13 @@
+// MIT License
+
+Copyright (c) 2024 Based Labs
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 use crate::models::types::{CellContext, Coordinates, Plan, PlanStatus, ColonyStatistics, Thought, DimensionalPosition};
 use crate::utils::logging::*;
 use std::error::Error;
@@ -575,7 +585,8 @@ impl Colony {
 
         // Query for relevant news about the best plan
         if !best_plan_narrative.is_empty() {
-            println!("\nAnalyzing technical context for best plan (score: {:.2})...", best_plan_score);
+            println!("
+Analyzing technical context for best plan (score: {:.2})...", best_plan_score);
             let news_query = format!(
                 r#"Analyze this AI system's plan against posts from the last 72 hours (2024 only) by technical accounts (<0.01% X following):
 
@@ -598,7 +609,9 @@ impl Colony {
             );
 
             match self.api_client.query_llm(&news_query).await {
-                Ok(news) => println!("\nRelevant developments:\n{}", news),
+                Ok(news) => println!("
+Relevant developments:
+{}", news),
                 Err(e) => eprintln!("Error querying for relevant news: {}", e),
             }
         }
@@ -654,7 +667,8 @@ impl Colony {
     }
 
     pub async fn handle_cell_reproduction(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        println!("\n[{}] Starting cell reproduction cycle", 
+        println!("
+[{}] Starting cell reproduction cycle", 
             chrono::Local::now().format("%H:%M:%S"));
         let mut new_cells = Vec::new();
         let mut rng = rand::thread_rng();
@@ -713,7 +727,8 @@ impl Colony {
     }
 
     pub fn print_cycle_statistics(&self, cycle: i32) {
-        println!("\n");
+        println!("
+");
         println!("                      Cycle {} Statistics                     ", cycle);
         println!("--------------------------------------------------------------");
         
@@ -763,7 +778,8 @@ impl Colony {
             0.0
         };
 
-        println!("\n");
+        println!("
+");
         println!("                    Memory Statistics                         ");
         println!("------------------------------------------------------------");
         println!("║ ┌──────────────────────────┬───────────────────────────┐ ║");
@@ -820,7 +836,8 @@ impl Colony {
                 let cell_ids: Vec<Uuid> = self.cells.keys().copied().collect();
         let total_cells = cell_ids.len();
         
-        println!("\n");
+        println!("
+");
         println!("                      Evolution Batch                          ");
         println!("--------------------------------------------------------------");
 
@@ -838,7 +855,8 @@ impl Colony {
                 .filter_map(|id| self.cells.get(id).map(|cell| (*id, cell.clone())))
                 .collect();
             
-            println!("\n[Batch {}/{}]", (batch_idx / BATCH_SIZE) + 1, (cell_ids.len() + BATCH_SIZE - 1) / BATCH_SIZE);
+            println!("
+[Batch {}/{}]", (batch_idx / BATCH_SIZE) + 1, (cell_ids.len() + BATCH_SIZE - 1) / BATCH_SIZE);
             
             // Spawn a new task for this batch
             let task = tokio::spawn(async move {
@@ -889,7 +907,8 @@ impl Colony {
             }
         }
 
-        println!("\n[{}] Evolution cycle completed for {} cells", 
+        println!("
+[{}] Evolution cycle completed for {} cells", 
             chrono::Local::now().format("%H:%M:%S"),
             total_cells);
             
@@ -1029,13 +1048,16 @@ impl Colony {
 
     pub fn print_leaderboard(&self) {
         if self.plan_leaderboard.is_empty() {
-            println!("\n╔════════════════════ COLONY LEADERBOARD ═══════════════════╗");
+            println!("
+╔════════════════════ COLONY LEADERBOARD ═══════════════════╗");
             println!("║                No data available yet                      ║");
-            println!("╚════════════════════════════════════════════════════════════╝\n");
+            println!("╚════════════════════════════════════════════════════════════╝
+");
             return;
         }
 
-        println!("\n╔════════════════════ COLONY LEADERBOARD ═══════════════════╗");
+        println!("
+╔════════════════════ COLONY LEADERBOARD ═══════════════════╗");
         
         // Pre-sort leaders for efficiency
         let mut leaders: Vec<_> = self.plan_leaderboard.iter().collect();
@@ -1090,7 +1112,8 @@ impl Colony {
         println!("║ ├── Average Thoughts per Cell: {:.1}", avg_thoughts);
         println!("║ └── Average Collaborations: {:.1}", avg_collabs);
         
-        println!("╚════════════════════════════════════════════════════════════╝\n");
+        println!("╚════════════════════════════════════════════════════════════╝
+");
     }
 
     pub fn print_statistics(&self) {
@@ -1138,7 +1161,8 @@ impl Colony {
             }
         }
 
-        println!("\n║ Memory Distribution:");
+        println!("
+║ Memory Distribution:");
         println!("║   Total Memory Usage: {} bytes", total_memory);
         println!("║   Average Memory per Cell: {} bytes", 
             if !self.cells.is_empty() { total_memory / self.cells.len() } else { 0 });
@@ -1150,7 +1174,8 @@ impl Colony {
         }
 
         // Print dimensional statistics
-        println!("\n║ Dimensional Statistics:");
+        println!("
+║ Dimensional Statistics:");
         let mut total_pos = DimensionalPosition {
             emergence: 0.0,
             coherence: 0.0,
@@ -1181,7 +1206,8 @@ impl Colony {
     }
 
     pub async fn audit_dimensional_positions(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        println!("\n[{}] Starting dimensional position audit...", 
+        println!("
+[{}] Starting dimensional position audit...", 
             chrono::Local::now().format("%H:%M:%S"));
             
         for (cell_id, cell) in self.cells.iter_mut() {

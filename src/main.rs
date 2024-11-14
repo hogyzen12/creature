@@ -1,3 +1,13 @@
+// MIT License
+
+Copyright (c) 2024 Based Labs
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 mod api;
 mod models;
 mod systems;
@@ -45,15 +55,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         tokio::select! {
             _ = ctrl_c() => {
-                println!("\nReceived Ctrl+C signal. Sending CREATURE to pasture...");
+                println!("
+Received Ctrl+C signal. Sending CREATURE to pasture...");
                 for _ in 0..2 {
                     shutdown_tx_clone.send(()).unwrap();
                 }
-                println!("\nIf the process doesn't exit cleanly, you can force quit with:");
+                println!("
+If the process doesn't exit cleanly, you can force quit with:");
                 println!("sudo kill -9 $(pgrep -fl 'creature' | awk '{{print $1}}')");
             }
             _ = sigterm.recv() => {
-                println!("\nReceived SIGTERM signal. Sending CREATURE to pasture...");
+                println!("
+Received SIGTERM signal. Sending CREATURE to pasture...");
                 for _ in 0..2 {
                     if let Err(e) = shutdown_tx_clone.send(()) {
                         eprintln!("Failed to send shutdown signal: {}", e);
@@ -232,7 +245,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let init_event = json!({
                     "type": "initialization",
                     "message": format!(
-                        "Initialized cell {} of {}:\n  Ca position: ({:.1}, {:.1}, {:.1})\n  Gradient position: ({:.2}, {:.2}, {:.2})\n  Cell ID: {}\n  Initial energy: {:.1}\n  Heat level: {:.2}\n  Dimensional Scores:\n    Emergence: {:.1}\n    Coherence: {:.1}\n    Resilience: {:.1}\n    Intelligence: {:.1}\n    Efficiency: {:.1}\n    Integration: {:.1}\n",
+                        "Initialized cell {} of {}:
+  Ca position: ({:.1}, {:.1}, {:.1})
+  Gradient position: ({:.2}, {:.2}, {:.2})
+  Cell ID: {}
+  Initial energy: {:.1}
+  Heat level: {:.2}
+  Dimensional Scores:
+    Emergence: {:.1}
+    Coherence: {:.1}
+    Resilience: {:.1}
+    Intelligence: {:.1}
+    Efficiency: {:.1}
+    Integration: {:.1}
+",
                         cell_index + 1, initial_cells,
                         grid_pos.0, grid_pos.1, grid_pos.2,
                         position.x, position.y, position.z,
@@ -322,7 +348,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("Shutting down simulation...");
                 break 'main;
             }
-            println!("\nStarting thoughts batch {} of {}", 
+            println!("
+Starting thoughts batch {} of {}", 
                 batch_idx / BATCH_SIZE + 1, (cell_ids.len() + BATCH_SIZE - 1) / BATCH_SIZE);
             let batch_end = (batch_idx + BATCH_SIZE).min(cell_ids.len());
             let batch = cell_ids[batch_idx..batch_end].to_vec();
@@ -333,11 +360,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         
         for batch_idx in (0..cell_ids.len()).step_by(BATCH_SIZE) {
-            println!("\nCreating plans batch {} of {}", 
+            println!("
+Creating plans batch {} of {}", 
                 batch_idx / BATCH_SIZE + 1, (cell_ids.len() + BATCH_SIZE - 1) / BATCH_SIZE);
             let batch_end = (batch_idx + BATCH_SIZE).min(cell_ids.len());
             let batch = cell_ids[batch_idx..batch_end].to_vec();
-            println!("\n╔════════════════════ PLAN GENERATION ═══════════════════╗");
+            println!("
+╔════════════════════ PLAN GENERATION ═══════════════════╗");
             println!("║ Batch {}/{} - Processing {} cells", 
                 batch_idx / BATCH_SIZE + 1, 
                 (cell_ids.len() + BATCH_SIZE - 1) / BATCH_SIZE,
@@ -399,7 +428,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if !running.load(Ordering::SeqCst) {
         println!("Shutting down gracefully...");
     } else {
-        println!("\nSimulation complete!");
+        println!("
+Simulation complete!");
     }
     
     colony.lock().unwrap().print_statistics();

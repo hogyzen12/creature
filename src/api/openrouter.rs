@@ -1,3 +1,13 @@
+// MIT License
+
+Copyright (c) 2024 Based Labs
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 use crate::models::types::{
     CellContext, RealTimeContext, Thought, Plan, PlanNode, PlanNodeStatus, PlanStatus,
     DimensionalPosition,
@@ -267,7 +277,8 @@ impl OpenRouterClient {
                 current_event = line.trim_start_matches("EVENT:").trim().to_string();
                 in_event = true;
             } else if in_event && !line.is_empty() {
-                current_event.push_str("\n");
+                current_event.push_str("
+");
                 current_event.push_str(line);
             }
         }
@@ -326,12 +337,15 @@ impl OpenRouterClient {
 
         let thoughts_context = if let Some(thoughts) = cell_thoughts {
             format!(
-                "\nRecent colony thoughts:\n{}",
+                "
+Recent colony thoughts:
+{}",
                 thoughts
                     .iter()
                     .map(|t| format!("- {}", t))
                     .collect::<Vec<_>>()
-                    .join("\n")
+                    .join("
+")
             )
         } else {
             String::new()
@@ -414,7 +428,8 @@ impl OpenRouterClient {
                 .iter()
                 .map(|t| format!("- {}", t))
                 .collect::<Vec<_>>()
-                .join("\n"),
+                .join("
+"),
             thoughts_context
         );
 
@@ -510,19 +525,24 @@ impl OpenRouterClient {
 
         // Format recent thoughts context
         let recent_thoughts_context = if !recent_thoughts.is_empty() {
-            format!("\nRECENT COLONY THOUGHTS:\n{}", 
+            format!("
+RECENT COLONY THOUGHTS:
+{}", 
                 recent_thoughts.iter()
                     .take(10)
                     .map(|t| format!("- {}", t.content))
                     .collect::<Vec<_>>()
-                    .join("\n"))
+                    .join("
+"))
         } else {
             String::new()
         };
 
         for chunk in cell_contexts.chunks(sub_batch_size) {
             let kb_context = if let Some(kb) = self.knowledge_base.lock().unwrap().as_ref() {
-                format!("\nKnowledge Base Context:\n{}", kb.compressed_content)
+                format!("
+Knowledge Base Context:
+{}", kb.compressed_content)
             } else {
                 String::new()
             };
@@ -531,14 +551,18 @@ impl OpenRouterClient {
                 .iter()
                 .map(|(id, ctx)| {
                     format!(
-                        "### CELL {}\nFOCUS: {}\nENERGY: {}\n",
+                        "### CELL {}
+FOCUS: {}
+ENERGY: {}
+",
                         id,
                         ctx.current_focus,
                         ctx.energy_level
                     )
                 })
                 .collect::<Vec<_>>()
-                .join("\n");
+                .join("
+");
 
             let context_prompt = format!(
                 r#"Contextual Analysis Framework:
@@ -662,7 +686,8 @@ impl OpenRouterClient {
                 cell_states  // Added this for ENTITY STATES section
             );
 
-            println!("\n║ Processing sub-batch of {} cells", chunk.len());
+            println!("
+║ Processing sub-batch of {} cells", chunk.len());
             match tokio::time::timeout(
                 std::time::Duration::from_secs(100),
                 self.query_llm(&context_prompt),
@@ -687,7 +712,8 @@ impl OpenRouterClient {
                         }
                         all_results.extend(results);
                     } else {
-                        eprintln!("Failed to parse results from response:\n{}", response);
+                        eprintln!("Failed to parse results from response:
+{}", response);
                     }
                 }
                 Ok(Err(e)) => {
@@ -719,7 +745,8 @@ impl OpenRouterClient {
                 .iter()
                 .map(|t| format!("- {}", t.content))
                 .collect::<Vec<_>>()
-                .join("\n");
+                .join("
+");
 
             let chunk_plan = self
                 .query_llm(&format!(
@@ -855,7 +882,11 @@ impl OpenRouterClient {
     3. Measurable outcomes
     4. Risk mitigations
     5. Resource allocations"#,
-                consolidated_plans.join("\n\n=== Next Component ===\n\n")
+                consolidated_plans.join("
+
+=== Next Component ===
+
+")
             ))
             .await?;
 
@@ -991,7 +1022,8 @@ impl OpenRouterClient {
                 } else if (line.starts_with('-') || line.starts_with("DESCRIPTION:")) && current_node.is_some() {
                     if let Some(ref mut node) = current_node {
                         if !node.description.is_empty() {
-                            node.description.push_str("\n");
+                            node.description.push_str("
+");
                         }
                         node.description.push_str(line
                             .trim_start_matches('-')
@@ -1049,13 +1081,15 @@ impl OpenRouterClient {
             .iter()
             .map(|t| format!("- {}", t.content))
             .collect::<Vec<_>>()
-            .join("\n");
+            .join("
+");
 
         let plans_context = recent_plans
             .iter()
             .map(|p| format!("- {}: {}", p.id, p.summary))
             .collect::<Vec<_>>()
-            .join("\n");
+            .join("
+");
 
         let eval_prompt = format!(
             r#"Dimensional Analysis Framework:
@@ -1171,7 +1205,8 @@ impl OpenRouterClient {
         &self,
         memories: &[String],
     ) -> Result<String, Box<dyn std::error::Error>> {
-        let memories_text = memories.join("\n");
+        let memories_text = memories.join("
+");
         let prompt = format!(
             r#"Memory Compression Framework:
 
@@ -1291,9 +1326,13 @@ impl OpenRouterClient {
 
         let combined_content = files
             .iter()
-            .map(|(name, content)| format!("File: {}\n{}\n", name, content))
+            .map(|(name, content)| format!("File: {}
+{}
+", name, content))
             .collect::<Vec<_>>()
-            .join("\n---\n");
+            .join("
+---
+");
                 match self.compress_knowledge(&combined_content).await {
             Ok(compressed) => {
                 let file_count = files.len();
@@ -1429,7 +1468,8 @@ impl OpenRouterClient {
 
                 if line.contains("**CONVENTIONAL VIEW:**") || line.contains("**RADICAL SHIFT:**") {
                     if !thought_buffer.is_empty() {
-                        thought_buffer.push('\n');
+                        thought_buffer.push('
+');
                     }
                     thought_buffer.push_str(line.trim_matches('*').trim());
                     continue;
@@ -1527,7 +1567,3 @@ fn normalize_topic(topic: &str) -> String {
         .filter(|c| c.is_alphanumeric() || c.is_whitespace())
         .collect()
 }
-
-
-
-

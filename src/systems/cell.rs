@@ -1,3 +1,13 @@
+// MIT License
+
+Copyright (c) 2024 Based Labs
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 use crate::models::types::{CellContext, Coordinates, DimensionalPosition, Plan, RealTimeContext, Thought};
 use crate::models::thought_io::{EventInput, EventOutput, ThoughtIO};
 use crate::models::constants::MAX_MEMORY_SIZE;
@@ -324,10 +334,12 @@ impl Cell {
             ascii_visualization: ascii_viz,
             referenced_thoughts,
         };
-        println!("\nGenerated Thought:");
+        println!("
+Generated Thought:");
         println!("════════════════════════════════════════════════════════════════════");
         println!("ID: {}", thought.id);
-        println!("Content:\n{}", thought.content);
+        println!("Content:
+{}", thought.content);
         println!("Relevance Score: {:.2}", thought.relevance_score);
         println!("Confidence Score: {:.2}", thought.confidence_score);
         println!("Context Tags: {}", thought.context_tags.join(", "));
@@ -335,7 +347,8 @@ impl Cell {
         for factor in &thought.real_time_factors {
             println!("  - {}", factor);
         }
-        println!("════════════════════════════════════════════════════════════════════\n");
+        println!("════════════════════════════════════════════════════════════════════
+");
 
         if let Some(ref mut plan) = self.current_plan {
             if plan.summary.trim().is_empty() {
@@ -425,14 +438,16 @@ impl Cell {
             log_simple_metric("Created", plan.created_at.format("%Y-%m-%d %H:%M:%S"));
             log_simple_metric("Status", format!("{:?}", plan.status));
             log_simple_metric("Score", format!("{:.2}", plan.score));
-            println!("╚═══════════════════════════════════════════════════════════════╝\n");
+            println!("╚═══════════════════════════════════════════════════════════════╝
+");
 
             // Plan Summary
             println!("╔═════════════════════════ EXECUTIVE SUMMARY ══════════════════════╗");
             for line in plan.summary.lines() {
                 println!("║ {:<69} ║", line);
             }
-            println!("╚═══════════════════════════════════════════════════════════════════╝\n");
+            println!("╚═══════════════════════════════════════════════════════════════════╝
+");
 
             // Plan Components
             if !plan.nodes.is_empty() {
@@ -453,7 +468,8 @@ impl Cell {
                         println!("║       {}", line);
                     }
                 }
-                println!("╚═══════════════════════════════════════════════════════════════════╝\n");
+                println!("╚═══════════════════════════════════════════════════════════════════╝
+");
             }
 
             // Supporting Thoughts
@@ -477,7 +493,8 @@ impl Cell {
                         println!("║   Factors: {}", thought.real_time_factors.join(", "));
                     }
                 }
-                println!("╚═══════════════════════════════════════════════════════════════════╝\n");
+                println!("╚═══════════════════════════════════════════════════════════════════╝
+");
             }
 
             // Participating Cells

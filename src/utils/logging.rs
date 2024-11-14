@@ -1,3 +1,13 @@
+// MIT License
+
+Copyright (c) 2024 Based Labs
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 use chrono::Local;
 use colored::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -9,19 +19,19 @@ pub fn update_stats_line(stats: &str, mission: Option<&str>) {
     let current_line = STATS_LINE.load(Ordering::Relaxed);
     
     // Clear and update stats line
-    print!("\x1B7"); // Save cursor
-    print!("\x1B[{};0H", current_line); // Move to stats line
-    print!("\x1B[2K"); // Clear line
-    print!("\x1B[0;94mCREATURE: {}\x1B[0m", stats);
+    print!("7"); // Save cursor
+    print!("[{};0H", current_line); // Move to stats line
+    print!("[2K"); // Clear line
+    print!("[0;94mCREATURE: {}[0m", stats);
     
     // Clear and update mission line
     if let Some(mission) = mission {
-        print!("\x1B[{};0H", current_line + 1); // Move to mission line
-        print!("\x1B[2K"); // Clear line
-        print!("\x1B[0;94mMISSION: {}\x1B[0m", mission);
+        print!("[{};0H", current_line + 1); // Move to mission line
+        print!("[2K"); // Clear line
+        print!("[0;94mMISSION: {}[0m", mission);
     }
     
-    print!("\x1B8"); // Restore cursor
+    print!("8"); // Restore cursor
     let _ = std::io::stdout().flush(); // Ensure output is flushed
 }
 
@@ -54,12 +64,14 @@ pub fn print_banner(mission: &str, name: &str) -> usize {
 "#.lines().count() + 2;
     STATS_LINE.store(line_num, Ordering::Relaxed);
     
-    println!("\n");
+    println!("
+");
     line_num
 }
 
 pub fn log_header(title: &str) {
-    println!("\n╔═══════════════[>SYSTEM<]════════════════╗");
+    println!("
+╔═══════════════[>SYSTEM<]════════════════╗");
     println!("║ [CREATURE] {} ║", title.bright_cyan().bold());
     println!("╠══════════════[>NEURAL.LINK.ACTIVE<]═══════════════╣");
 }
@@ -104,7 +116,8 @@ pub fn log_timestamp(prefix: &str) {
 }
 
 pub fn log_footer() {
-    println!("╚════════════════[>STREAM.TERMINATED<]═══════════════╝\n");
+    println!("╚════════════════[>STREAM.TERMINATED<]═══════════════╝
+");
 }
 
 pub fn log_memory_usage(label: &str, bytes: usize) {
@@ -125,7 +138,8 @@ pub fn log_section_header(title: &str) {
 }
 
 pub fn log_section_footer() {
-    println!("╚═══════════════[>CELL.DISCONNECT<]══════════════╝\n");
+    println!("╚═══════════════[>CELL.DISCONNECT<]══════════════╝
+");
 }
 
 pub fn ensure_data_directories() -> std::io::Result<()> {
