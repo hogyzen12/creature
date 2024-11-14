@@ -288,11 +288,11 @@ impl Cell {
             self.position.z,
             self.thought_counter
         );
-        // Extract ASCII visualization and referenced thoughts from the response
+        // Extract ASCII visualization and referenced thoughts from the thought content
         let mut ascii_viz = None;
         let mut referenced_thoughts = Vec::new();
             
-        for line in response.lines() {
+        for line in thought_content.lines() {
             if line.starts_with("ASCII_TEMPLATE:") {
                 if let Some(template_name) = line.split(':').nth(1) {
                     if let Some(template) = crate::utils::ascii_art::get_ascii_template(template_name.trim()) {
