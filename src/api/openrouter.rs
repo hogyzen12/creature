@@ -756,27 +756,27 @@ impl OpenRouterClient {
 
     Analyze each vector as a complex adaptive system:
     1. NETWORK DYNAMICS
-    - {{Flow patterns}}
-    - {{Resource distribution}}
-    - {{Connection topology}}
-    - {{Interaction modes}}
+    - Flow patterns
+    - Resource distribution
+    - Connection topology
+    - Interaction modes
 
     2. BOUNDARY CONDITIONS
-    - {{Interface dynamics}}
-    - {{Connection patterns}}
-    - {{Integration vectors}}
-    - {{Barrier dissolution}}
+    - Interface dynamics
+    - Connection patterns
+    - Integration vectors
+    - Barrier dissolution
 
     3. EMERGENCE PATTERNS
-    - {{Novel properties}}
-    - {{Feedback cycles}}
-    - {{Pattern evolution}}
-    - {{System adaptations}}
+    - Novel properties
+    - Feedback cycles
+    - Pattern evolution
+    - System adaptations
 
     4. POTENTIAL SPACES
-    - {{Unexplored capabilities}}
-    - {{Constraint removal}}
-    - {{Novel applications}}
+    - Unexplored capabilities
+    - Constraint removal
+    - Novel applications
 
     Required Format:
 
