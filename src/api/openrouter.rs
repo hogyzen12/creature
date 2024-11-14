@@ -1406,8 +1406,6 @@ impl OpenRouterClient {
             for (i, line) in response.lines().enumerate() {
                 eprintln!("{:3}: {}", i + 1, line);
             }
-        } else {
-            println!("Successfully parsed {} thoughts", results.len());
         }
 
         Ok(results)
