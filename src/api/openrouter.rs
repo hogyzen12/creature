@@ -508,8 +508,6 @@ impl OpenRouterClient {
         let sub_batch_size = 3;
         let mut all_results = HashMap::new();
 
-        // Collect recent thoughts from all cells
-        let mut all_recent_thoughts = Vec::new();
         // Format recent thoughts context
         let recent_thoughts_context = if !recent_thoughts.is_empty() {
             format!("\nRECENT COLONY THOUGHTS:\n{}", 
