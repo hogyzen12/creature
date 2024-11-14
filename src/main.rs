@@ -137,7 +137,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         
     let colony_name = matches.value_of("name").unwrap_or("Unnamed");
     
-    crate::utils::logging::update_stats_line(&format!("{}", colony_name));
+    crate::utils::logging::update_stats_line(&format!("{}", colony_name), Some(&mission));
 
     let api_client = api::openrouter::OpenRouterClient::new(api_key.clone())
         .map_err(|e| e as Box<dyn std::error::Error>)?;
@@ -302,7 +302,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }; 
 
         crate::utils::logging::update_stats_line(&format!("{} | Cells: {} | Energy: {:.1} | Thoughts: {} | Plans: {} | Mutation: {:.1}%",
-            colony_name, stats.0, stats.1, stats.2, stats.3, stats.4 * 100.0));
+            colony_name, stats.0, stats.1, stats.2, stats.3, stats.4 * 100.0), Some(&mission));
             
         println!("Active cells: {}", stats.0);
         println!("Average energy: {:.1}", stats.1);
