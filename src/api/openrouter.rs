@@ -510,19 +510,12 @@ impl OpenRouterClient {
 
         // Collect recent thoughts from all cells
         let mut all_recent_thoughts = Vec::new();
-        for cell in self.cells.values() {
-            all_recent_thoughts.extend(cell.thoughts.iter()
-                .rev()
-                .take(10)
-                .cloned());
-        }
-
         // Format recent thoughts context
-        let recent_thoughts_context = if !all_recent_thoughts.is_empty() {
+        let recent_thoughts_context = if !recent_thoughts.is_empty() {
             format!("\nRECENT COLONY THOUGHTS:\n{}", 
-                all_recent_thoughts.iter()
+                recent_thoughts.iter()
                     .take(10)
-                    .map(|t| format!("- [{}] {}", t.id, t.content))
+                    .map(|t| format!("- {}", t.content))
                     .collect::<Vec<_>>()
                     .join("\n"))
         } else {
