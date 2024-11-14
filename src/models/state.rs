@@ -18,6 +18,8 @@ pub struct CellState {
     pub phase: f64,
     pub context_alignment_score: f64,
     pub mission_alignment_score: f64,
+    pub lenia_state: f64,
+    pub lenia_influence: f64,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -26,6 +28,15 @@ pub struct ColonyState {
     pub cells: HashMap<Uuid, CellState>,
     pub total_cycles: u32,
     pub mission: String,
+    pub lenia_world: Option<LeniaWorldState>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct LeniaWorldState {
+    pub grid: Vec<f64>,
+    pub size: usize,
+    pub growth_mu: f64,
+    pub growth_sigma: f64,
 }
 
 impl ColonyState {
