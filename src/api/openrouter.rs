@@ -1039,7 +1039,10 @@ impl OpenRouterClient {
         for line in response.lines() {
             let line = line.trim();
             if line.starts_with("THOUGHT:") {
-                thought = line.trim_start_matches("THOUGHT:").trim().to_string();
+                let content = line.trim_start_matches("THOUGHT:").trim();
+                if !content.is_empty() {
+                    thought = content.to_string();
+                }
             } else if line.starts_with("RELEVANCE:") || line.starts_with("**RELEVANCE:**") {
                 let relevance_str = line
                     .trim_start_matches("**RELEVANCE:**")
@@ -1048,14 +1051,12 @@ impl OpenRouterClient {
                     .trim_end_matches("**")
                     .trim();
 
-                relevance = if let Ok(val) = relevance_str.parse() {
-                    val
-                } else {
-                    println!(
-                        "Warning: Invalid relevance score '{}', using default",
-                        relevance_str
-                    );
-                    0.5
+                relevance = match relevance_str.parse() {
+                    Ok(val) => val.clamp(0.0, 1.0),
+                    Err(_) => {
+                        eprintln!("Error: Invalid relevance score '{}' for thought, using default 0.5", relevance_str);
+                        0.5
+                    }
                 };
             } else if line.starts_with("FACTORS:") {
                 factors = line
@@ -1066,6 +1067,27 @@ impl OpenRouterClient {
                     .collect();
             }
         }
+
+        // Validate thought content before returning
+        if thought.trim().is_empty() {
+            eprintln!("Error: Empty thought content generated, using placeholder");
+            thought = "Exploring system dynamics and adaptation patterns".to_string();
+        }
+
+        // Ensure we have at least one factor
+        if factors.is_empty() {
+            factors = vec![
+                "System observation".to_string(),
+                "Pattern analysis".to_string(),
+                "Adaptation strategy".to_string()
+            ];
+        }
+
+        // Normalize factors to exactly 3
+        while factors.len() < 3 {
+            factors.push("Continuing analysis".to_string());
+        }
+        factors.truncate(3);
 
         Ok((thought, relevance, factors))
     }
