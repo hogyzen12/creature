@@ -777,16 +777,13 @@ impl Colony {
         println!("[{}] Preparing to advance Lenia simulation...", 
             chrono::Local::now().format("%H:%M:%S"));
         
-        // Log Lenia world state before step
-        println!("║ Lenia World State Before Step:");
-        println!("║   Grid Size: {}x{}x{}", 
-            self.lenia_world.grid.shape()[0],
-            self.lenia_world.grid.shape()[1],
-            self.lenia_world.grid.shape()[2]);
+        // Log colony state before evolution
+        println!("║ Colony State Before Evolution:");
+        println!("║   Total Cells: {}", self.cells.len());
         println!("║   Active Cells: {}", 
-            self.lenia_world.grid.iter().filter(|&&x| x > 0.0).count());
+            self.cells.values().filter(|c| c.energy > 50.0).count());
         println!("║   Total Energy: {:.2}", 
-            self.lenia_world.grid.iter().sum::<f64>());
+            self.cells.values().map(|c| c.energy).sum::<f64>());
         
         // Simple position-based evolution
         for (id, pos) in self.cell_positions.iter_mut() {
@@ -946,12 +943,7 @@ impl Colony {
             cells: cell_states,
             total_cycles: 0,
             mission: self.mission.clone(),
-            lenia_world: Some(LeniaWorldState {
-                grid: self.lenia_world.grid.to_owned().into_raw_vec(),
-                size: self.lenia_world.grid.shape()[0],
-                growth_mu: self.lenia_world.params.growth_mu,
-                growth_sigma: self.lenia_world.params.growth_sigma,
-            }),
+            lenia_world: None,
             energy_grid: EnergyGridState {
                 size: grid_size,
                 grid,
