@@ -312,7 +312,7 @@ impl OpenRouterClient {
         let trending_topics = self.get_trending_topics().await?;
 
         // Deduplicate and filter topics
-        let unique_topics: Vec<String> = trending_topics
+        let unique_topics: Vec<String> = trending_topics.clone()
             .into_iter()
             .filter(|topic| {
                 let topic_lower = topic.to_lowercase();
