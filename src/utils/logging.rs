@@ -4,12 +4,18 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 static STATS_LINE: AtomicUsize = AtomicUsize::new(0);
 
-pub fn update_stats_line(stats: &str) {
+pub fn update_stats_line(stats: &str, mission: Option<&str>) {
     // Save cursor position, move to stats line, clear line, print stats, restore cursor
     print!("\x1B7\x1B[{};0H\x1B[2K\x1B[0;94mCREATURE: {}\x1B[0m\x1B8", 
         STATS_LINE.load(Ordering::Relaxed), 
         stats
     );
+    if let Some(mission) = mission {
+        print!("\x1B7\x1B[{};0H\x1B[2K\x1B[0;94mMISSION: {}\x1B[0m\x1B8",
+            STATS_LINE.load(Ordering::Relaxed) + 1,
+            mission
+        );
+    }
 }
 
 pub fn print_banner() -> usize {
