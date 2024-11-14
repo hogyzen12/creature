@@ -486,7 +486,7 @@ impl OpenRouterClient {
         real_time_context: &RealTimeContext,
         colony_mission: &str,
     ) -> Result<(String, f64, Vec<String>), Box<dyn std::error::Error>> {
-        let mut results = self.generate_contextual_thoughts_batch(&[(Uuid::new_v4(), cell_context)], real_time_context, colony_mission).await?;
+        let mut results = self.generate_contextual_thoughts_batch(&[(Uuid::new_v4(), cell_context)], real_time_context, colony_mission, &[]).await?;
         
         // Take the first result from the batch
         if let Some((_, thoughts)) = results.iter().next().map(|(k,v)| (k,v.clone())) {
