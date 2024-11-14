@@ -1328,7 +1328,6 @@ impl Colony {
         evolved_cells / total_cells
     }
 }
-
 fn calculate_dimensional_complement(pos1: &DimensionalPosition, pos2: &DimensionalPosition) -> f64 {
     // Calculate how well two positions complement each other
     // Higher score means their differences tend to balance toward 0
