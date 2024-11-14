@@ -3,13 +3,32 @@ use crate::models::types::{
     DimensionalPosition,
 };
 use crate::models::KnowledgeBase;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use rand::Rng;
 use reqwest;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
+
+#[derive(Debug)]
+pub enum ClientError {
+    LockError(String),
+    ApiError(String),
+    ParseError(String),
+}
+
+impl std::error::Error for ClientError {}
+
+impl std::fmt::Display for ClientError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ClientError::LockError(msg) => write!(f, "Lock error: {}", msg),
+            ClientError::ApiError(msg) => write!(f, "API error: {}", msg),
+            ClientError::ParseError(msg) => write!(f, "Parse error: {}", msg),
+        }
+    }
+}
 
 struct CachedContext {
     context: RealTimeContext,
@@ -101,7 +120,7 @@ impl OpenRouterClient {
                     "model": "x-ai/grok-beta",
                     "messages": [{
                         "role": "user",
-                    "content": r#"
+                        "content": r#"
                         Analyze technical developments from the last 72 hours across multiple domains.
                         Focus on posts from accounts with <0.01% following on technical platforms.
 
@@ -211,7 +230,7 @@ impl OpenRouterClient {
                            - Update frequency noted
 
                         4. Data Requirements
-                           - Raw metrics
+                                                       - Raw metrics
                            - Benchmark results
                            - Error rates
                            - Resource usage
@@ -222,13 +241,12 @@ impl OpenRouterClient {
                         Format as structured events with all required fields.
                         Prioritize technical depth over quantity.
                         "#
-                }],
-                "temperature": 0.9,
-                "max_tokens": Self::get_max_tokens_for_model("x-ai/grok-beta")
-            }))
-            .send()
-            .await?
-            .map_err(|e| format!("API request failed: {}", e))?;
+                    }],
+                    "temperature": 0.9,
+                    "max_tokens": Self::get_max_tokens_for_model("x-ai/grok-beta")
+                }))
+                .send()
+        ).await??;
 
         let json: serde_json::Value = response.json().await?;
         let response_text = json["choices"][0]["message"]["content"]
@@ -266,14 +284,19 @@ impl OpenRouterClient {
         &self,
         cell_thoughts: Option<Vec<String>>,
     ) -> Result<RealTimeContext, Box<dyn std::error::Error>> {
-        // Try to get cached context with proper error handling
         let should_refresh = {
-            let cache = self.context_cache.lock().map_err(|e| format!("Cache lock error: {}", e))?;
-            match cache.as_ref() {
-                Some(cached) if cached.timestamp.elapsed().map(|d| d < Duration::from_secs(300)).unwrap_or(false) => {
-                    return Ok(cached.context.clone());
+            match self.context_cache.lock() {
+                Ok(cache) => {
+                    match cache.as_ref() {
+                        Some(cached) => cached.timestamp.elapsed()
+                            .map_or(true, |d| d >= Duration::from_secs(300)),
+                        None => true
+                    }
                 }
-                _ => true
+                Err(e) => {
+                    eprintln!("Cache lock error: {}", e);
+                    true
+                }
             }
         };
 
@@ -441,7 +464,7 @@ impl OpenRouterClient {
             
             clean_context.market_trends.retain(|t| seen_topics.insert(normalize_topic(t)));
             clean_context.technological_developments.retain(|t| seen_topics.insert(normalize_topic(t)));
-            clean_context.current_events.retain(|t| seen_topics.insert(normalize_topic(t)));
+                            clean_context.current_events.retain(|t| seen_topics.insert(normalize_topic(t)));
             clean_context.user_interactions.retain(|t| seen_topics.insert(normalize_topic(t)));
             
             history.contexts.push_back(clean_context.clone());
@@ -607,14 +630,7 @@ impl OpenRouterClient {
                                 println!("║ │  Content: {:.100}...", thought);
                             }
                         }
-                        all_results.extend(results.into_iter().map(|(id, thoughts)| {
-                            // Take the highest scoring thought
-                            let (thought, score, factors) = thoughts.into_iter()
-                                .max_by(|(_, score1, _), (_, score2, _)| 
-                                    score1.partial_cmp(score2).unwrap_or(std::cmp::Ordering::Equal))
-                                .unwrap();
-                            (id, (thought, score, factors))
-                        }));
+                        all_results.extend(results);
                     } else {
                         eprintln!("Failed to parse results from response:\n{}", response);
                     }
@@ -690,7 +706,7 @@ impl OpenRouterClient {
     CONVENTIONAL VIEW: [Standard approach]
     RADICAL SHIFT: [New possibility]
     EVIDENCE: [Proof points]
-    IMPLEMENTATION:
+        IMPLEMENTATION:
     - Technical specifications
     - Resource requirements
     - Timeline estimates
@@ -723,28 +739,7 @@ impl OpenRouterClient {
     - System connections
     - Data flows
     - Control mechanisms
-    - Feedback loops
-
-    Constraints:
-    1. ONLY reference:
-       - Active repository commits (72h)
-       - Public experiments with results
-       - Deployed systems with metrics
-       - Official documentation
-
-    2. EXCLUDE:
-       - Unverified claims
-       - Unreleased features
-       - Future announcements
-       - Speculative capabilities
-
-    3. REQUIRED per component:
-       - Commit hashes
-       - Researcher names
-       - Experiment results
-       - Deployment metrics
-       - Documentation links
-                "#,
+    - Feedback loops"#,
                     thoughts_context
                 ))
                 .await?;
@@ -779,20 +774,10 @@ impl OpenRouterClient {
     - {{System surprises}}
 
     4. HIDDEN POTENTIALS ANALYSIS
-    - {{Untapped capabilities that could result from this plan}}
-    - {{Novel applications of the plans}}
-
-    5. POWER DYNAMICS INTEGRATION
-    - {{Control consolidation}}
-    - {{Resource allocation}}
-    - {{Influence flows}}
-    - {{Authority structures}}
-
-    6. TEMPORAL PATTERNS INTEGRATION
-    - {{cellular Evolution paths}}
-    - {{Decay patterns}}
-    - {{Cyclic behaviors}}
-    - {{Timescale interactions}}
+    - {{Untapped capabilities}}
+    - {{Novel applications}}
+    - {{Constraint removals}}
+    - {{Integration possibilities}}
 
     Required Format:
 
@@ -807,38 +792,14 @@ impl OpenRouterClient {
     IMPLICATIONS: [Cascading effects]
 
     ARCHITECTURE:
-    [Detailed system architecture in ASCII:]
-    - Show all components hierarchically 
-    - Use box drawing chars (─ │ ┌ ┐ └ ┘ ├ ┤ ┬ ┴ ┼)
-    - Include data flows with arrows (← → ↑ ↓)
-    - Mark critical paths with ***
-    - Show interfaces with [brackets]
-    - Indicate feedback loops with ⟲
-    
-    Example layout:
-                            ┌──────────────┐
-                            │ Master Plan  │
-                            └──────┬───────┘
-                                   │
-                    ┌──────────────┴─────────────┐
-                    │                            │
-            ┌───────┴────────┐          ┌───────┴────────┐
-            │ Component A    │          │ Component B    │
-            └───────┬────────┘          └───────┬────────┘
-                    │                           │
-            ┌───────┴────────┐          ┌───────┴────────┐
-            │    Tasks       │←─⟲─────→│   Feedback     │
-            └───────┬────────┘          └───────┬────────┘
-                    │                           │
-            [Integration Points]         [System Bounds]
+    [Detailed system architecture in ASCII]
 
     Requirements:
     1. Logical component flow
     2. Clear dependencies
     3. Measurable outcomes
     4. Risk mitigations
-    5. Resource allocations
-                "#,
+    5. Resource allocations"#,
                 consolidated_plans.join("\n\n=== Next Component ===\n\n")
             ))
             .await?;
@@ -910,12 +871,10 @@ impl OpenRouterClient {
     1. 2000+ words
     2. RFP structure
     3. Technical precision
-    4. Implementation focus
-                "#,
+    4. Implementation focus"#,
                 combined_plan
             ))
             .await?;
-            
 
         let mut nodes = Vec::new();
         let mut current_node = None;
@@ -992,7 +951,6 @@ impl OpenRouterClient {
             nodes.push(node);
         }
 
-        // If we still only have the default node, try to extract more from the summary
         if nodes.len() == 1 && !summary.is_empty() {
             for line in summary.lines() {
                 if line.contains(':') || line.contains('-') {
@@ -1116,8 +1074,7 @@ impl OpenRouterClient {
     2. Multi-framework analysis
     3. Pattern recognition
     4. Emergence identification
-    5. System dynamics mapping
-    "#,
+    5. System dynamics mapping"#,
             dimensional_position.emergence,
             dimensional_position.coherence,
             dimensional_position.resilience,
@@ -1153,430 +1110,6 @@ impl OpenRouterClient {
         }
 
         Ok((energy_impact, dopamine_impact))
-    }
-
-    pub async fn generate_contextual_thought(
-        &self,
-        cell_context: &CellContext,
-        real_time_context: &RealTimeContext,
-        colony_mission: &str,
-    ) -> Result<(String, f64, Vec<String>), Box<dyn std::error::Error>> {
-        let filtered_mission = colony_mission.replace("quantum", "advanced");
-        
-        // Get previous thoughts for uniqueness check
-        let previous_thoughts = cell_context.active_research_topics.iter()
-            .take(10)
-            .map(|t| format!("- {}", t))
-            .collect::<Vec<_>>()
-            .join("\n");
-            
-        let context_prompt = format!(
-            r#"Multi-Cell Analysis Framework:
-
-    MISSION CONTEXT: {}
-    
-    PREVIOUS THOUGHTS:
-    {}
-    
-    UNIQUENESS REQUIREMENTS:
-    - Must be substantially different from all previous thoughts
-    - Cannot reuse core concepts or patterns
-    - Must explore new directions and perspectives
-    - Should challenge existing thought patterns
-    
-    ENVIRONMENTAL VECTORS:
-    1. Market Dynamics: {}
-    2. Technical Evolution: {}
-    3. Event Patterns: {}
-    4. Interaction Flows: {}
-
-    CELL STATE:
-    Focus: {}
-    Research: {}
-    Discoveries: {}
-    Stage: {}
-    Energy: {}
-    Position: [{:.2}, {:.2}, {:.2}, {:.2}, {:.2}, {:.2}]
-
-    Analysis Framework:
-
-    1. POWER DYNAMICS ANALYSIS
-    - {{Control mechanisms}}
-    - {{Resource flows  }}
-    - {{Influence networks}} 
-    - {{Authority structures}}
-
-    2. SYSTEM BOUNDARIES ANALYSIS
-    - {{Interface points}}
-    - {{Connection patterns}}
-    - {{Integration opportunities}}
-    - {{Boundary dissolutions}}
-
-    3. EMERGENCE VECTORS ANALYSIS
-    - {{Unexpected properties}}
-    - {{Feedback loops}}
-    - {{Pattern formation}}
-    - {{System surprises}}
-
-    4. HIDDEN POTENTIALS ANALYSIS
-    - {{Untapped capabilities that could result from this plan}}
-    - Removed constraints
-    - {{Novel applications of the plans}}
-
-    Required Output Structure:
-
-    THOUGHT ANALYSIS:
-    CONVENTIONAL VIEW: [Standard interpretation]
-    RADICAL SHIFT: [Non-obvious insight]
-    EVIDENCE: [Concrete proof]
-    IMPLICATIONS: [Cascading effects]
-
-    THOUGHT: [Core idea challenging assumptions]
-    RELEVANCE: <0.0-1.0>
-    FACTORS: [Exactly 3 key factors]
-
-    ASCII_TEMPLATE: [One of: neural, tree, circuit, feedback, chain]
-    REFERENCES: [comma-separated list of cell_uuid/thought_id pairs]
-
-    DIMENSIONAL SCORING:
-    Each score must be a whole number (no decimals) within the specified range:
-    - EMERGENT_INTELLIGENCE: <Whole number from -100 to 100>
-    - RESOURCE_EFFICIENCY: <Whole number from 0 to 100>
-    - NETWORK_COHERENCE: <Whole number from -100 to 100>
-    - GOAL_ALIGNMENT: <Whole number from 0 to 100>
-    - TEMPORAL_RESILIENCE: <Whole number from 0 to 100>
-    - DIMENSIONAL_INTEGRATION: <Whole number from -100 to 100>
-
-    DOPAMINE: <0 to 1>
-
-    Requirements:
-    1. Evidence-based analysis
-    2. System-level thinking
-    3. Pattern recognition
-    4. Emergence identification
-    5. Clear causality chains
-    6. Unique thoughts
-    7. Cross-system influences
-    8. Include specific recent events and inventions in thought creation
-    9. Reference concrete events and inventions from the last 72 hours
-    10. Cite specific sources, commits, and timestamps for all events and inventions mentioned
-            "#,
-            filtered_mission,
-            real_time_context.market_trends.join(", "),
-            real_time_context.technological_developments.join(", "),
-            real_time_context.current_events.join(", "),
-            real_time_context.user_interactions.join(", "),
-            cell_context.current_focus,
-            cell_context.active_research_topics.join(", "),
-            cell_context.recent_discoveries.join(", "),
-            cell_context.evolution_stage,
-            cell_context.energy_level,
-            cell_context.dimensional_position.emergence,
-            cell_context.dimensional_position.coherence,
-            cell_context.dimensional_position.resilience,
-            cell_context.dimensional_position.intelligence,
-            cell_context.dimensional_position.efficiency,
-            cell_context.dimensional_position.integration
-        );
-
-        let response = self.query_llm(&context_prompt).await?;
-        
-
-        let mut thought = String::new();
-        let mut relevance = 0.0;
-        let mut factors = Vec::new();
-
-        for line in response.lines() {
-            let line = line.trim();
-            if line.starts_with("THOUGHT:") {
-                let content = line.trim_start_matches("THOUGHT:").trim();
-                if !content.is_empty() {
-                    thought = content.to_string();
-                }
-            } else if line.starts_with("RELEVANCE:") || line.starts_with("**RELEVANCE:**") {
-                let relevance_str = line
-                    .trim_start_matches("**RELEVANCE:**")
-                    .trim_start_matches("RELEVANCE:")
-                    .trim_start_matches("**")
-                    .trim_end_matches("**")
-                    .trim();
-
-                relevance = match relevance_str.parse::<f64>() {
-                    Ok(val) => val.clamp(0.0, 1.0),
-                    Err(_) => {
-                        eprintln!("Error: Invalid relevance score '{}' for thought, using default 0.5", relevance_str);
-                        0.5
-                    }
-                };
-            } else if line.starts_with("FACTORS:") {
-                factors = line
-                    .trim_start_matches("FACTORS:")
-                    .split(',')
-                    .map(|s| s.trim().to_string())
-                    .filter(|s| !s.is_empty())
-                    .collect();
-            }
-        }
-
-        // Validate thought content before returning
-        if thought.trim().is_empty() {
-            // Try to extract thought from THOUGHT ANALYSIS section
-            if let Some(analysis_section) = response.split("THOUGHT ANALYSIS:").nth(1) {
-                if let Some(end_idx) = analysis_section.find("DIMENSIONAL SCORING:") {
-                    let analysis = analysis_section[..end_idx].trim();
-                    
-                    // Extract content between RADICAL SHIFT and EVIDENCE if present
-                    if let Some(radical_shift) = analysis.split("RADICAL SHIFT:").nth(1) {
-                        if let Some(end_evidence) = radical_shift.find("EVIDENCE:") {
-                            thought = radical_shift[..end_evidence].trim().to_string();
-                        }
-                    }
-                    
-                    // If still empty, try to extract any substantial paragraph
-                    if thought.trim().is_empty() {
-                        thought = analysis
-                            .lines()
-                            .filter(|l| l.len() > 100) // Look for substantial paragraphs
-                            .next()
-                            .unwrap_or("Exploring system dynamics and adaptation patterns")
-                            .to_string();
-                    }
-                }
-            }
-            
-            // If still empty after trying to extract, use placeholder
-            if thought.trim().is_empty() {
-                eprintln!("Error: Could not extract valid thought from response:");
-                eprintln!("═══════════════ LLM RESPONSE ═══════════════");
-                eprintln!("{}", response);
-                eprintln!("═══════════════════════════════════════════");
-                eprintln!("Using placeholder thought instead");
-                thought = "Exploring system dynamics and adaptation patterns".to_string();
-            }
-        }
-
-        // Ensure we have at least one factor
-        if factors.is_empty() {
-            factors = vec![
-                "System observation".to_string(),
-                "Pattern analysis".to_string(),
-                "Adaptation strategy".to_string()
-            ];
-        }
-
-        // Normalize factors to exactly 3
-        while factors.len() < 3 {
-            factors.push("Continuing analysis".to_string());
-        }
-        factors.truncate(3);
-
-        Ok((thought, relevance, factors))
-    }
-
-    fn parse_context_response(
-        &self,
-        response: &str,
-    ) -> Result<HashMap<String, Vec<String>>, Box<dyn std::error::Error>> {
-        let mut result = HashMap::new();
-        let mut current_category = String::new();
-        let mut current_items = Vec::new();
-
-        for line in response.lines() {
-            let line = line.trim();
-
-            if line.is_empty() {
-                continue;
-            }
-
-            if line.ends_with(':') {
-                if !current_category.is_empty() {
-                    result.insert(current_category.clone(), current_items.clone());
-                    current_items.clear();
-                }
-
-                current_category = line.trim_end_matches(':').to_lowercase().replace(' ', "_");
-            } else if line.starts_with('-') {
-                current_items.push(line.trim_start_matches('-').trim().to_string());
-            }
-        }
-
-        if !current_category.is_empty() {
-            result.insert(current_category, current_items);
-        }
-
-        Ok(result)
-    }
-
-    fn parse_batch_thought_response(
-        &self,
-        response: &str,
-    ) -> Result<HashMap<Uuid, (String, f64, Vec<String>)>, Box<dyn std::error::Error>> {
-        let mut results: HashMap<Uuid, Vec<(String, f64, Vec<String>)>> = HashMap::new();
-        
-        // Split into cell sections, being more lenient with formatting
-        let cell_sections: Vec<&str> = response
-            .split(|c| c == '#' || c == '═' || c == '╔' || c == '╚')
-            .filter(|s| s.contains("CELL"))
-            .collect();
-
-        for section in cell_sections {
-            let mut lines = section.lines();
-            let mut current_uuid = None;
-            let mut current_thought = String::new();
-            let mut current_relevance = 0.5; // Default relevance
-            let mut current_factors = Vec::new();
-            let mut in_thought = false;
-            let mut thought_buffer = Vec::new();
-
-            while let Some(line) = lines.next() {
-                let line = line.trim();
-                if line.is_empty() { continue; }
-
-                // Extract UUID - now more flexible
-                if line.contains("CELL") {
-                    if let Some(uuid_str) = line
-                        .split(|c: char| !c.is_ascii_hexdigit() && c != '-')
-                        .find(|s| s.len() == 36) 
-                    {
-                        if let Ok(uuid) = Uuid::parse_str(uuid_str) {
-                            current_uuid = Some(uuid);
-                        }
-                    }
-                    continue;
-                }
-
-                // Handle thought analysis section
-                if line.contains("THOUGHT ANALYSIS:") {
-                    in_thought = true;
-                    continue;
-                }
-
-                // Handle conventional/radical view sections
-                if line.contains("**CONVENTIONAL VIEW:**") || line.contains("**RADICAL SHIFT:**") {
-                    if !thought_buffer.is_empty() {
-                        thought_buffer.push("\n"); // Add spacing between sections
-                    }
-                    thought_buffer.push(line.trim_matches('*').trim().to_string());
-                    continue;
-                }
-
-                // Detect thought section with flexible markers
-                if line.to_uppercase().contains("THOUGHT") && line.contains(':') {
-                    in_thought = true;
-                    if let Some(content) = line.split(':').nth(1) {
-                        let cleaned = content.trim();
-                        if !cleaned.is_empty() {
-                            thought_buffer.push(cleaned.to_string());
-                        }
-                    }
-                    continue;
-                }
-
-                // Parse relevance with improved number extraction
-                if line.to_uppercase().contains("RELEVANCE") {
-                    if let Some(value_str) = line.split(':').nth(1) {
-                        if let Some(value) = value_str
-                            .trim()
-                            .split_whitespace()
-                            .next()
-                            .and_then(|s| s.parse::<f64>().ok())
-                        {
-                            current_relevance = value.clamp(0.0, 1.0);
-                        }
-                    }
-                    continue;
-                }
-
-                // Parse factors with improved list handling
-                if line.to_uppercase().contains("FACTORS") {
-                    if !thought_buffer.is_empty() {
-                        current_thought = thought_buffer.join("\n");
-                        thought_buffer.clear();
-                    }
-                    
-                    current_factors = line
-                        .split(|c| c == ',' || c == ';' || c == '|')
-                        .filter_map(|s| {
-                            let cleaned = s.trim()
-                                .trim_start_matches(|c| c == '-' || c == '*' || c == '[' || c == ']')
-                                .trim_end_matches(|c| c == ']' || c == ':')
-                                .trim();
-                            if !cleaned.is_empty() {
-                                Some(cleaned.to_string())
-                            } else {
-                                None
-                            }
-                        })
-                        .collect();
-                    continue;
-                }
-
-                // Collect thought content
-                if in_thought && 
-                   !line.to_uppercase().contains("DIMENSION") && 
-                   !line.to_uppercase().contains("DOPAMINE") &&
-                   !line.to_uppercase().contains("RELEVANCE") &&
-                   !line.to_uppercase().contains("FACTORS") {
-                    if !line.trim().is_empty() {
-                        thought_buffer.push(line.trim().to_string());
-                    }
-                }
-            }
-
-            // Finalize thought processing
-            if !thought_buffer.is_empty() {
-                current_thought = thought_buffer.join("\n");
-            }
-
-            // If thought is still empty but we have evidence sections, try to construct from those
-            if current_thought.is_empty() {
-                let evidence_sections: Vec<String> = thought_buffer.iter()
-                    .filter(|line| line.contains("EVIDENCE:") || line.contains("IMPLICATIONS:"))
-                    .map(|line| line.trim().to_string())
-                    .collect();
-                
-                if !evidence_sections.is_empty() {
-                    current_thought = evidence_sections.join("\n");
-                }
-            }
-
-            // Only insert if we have valid data
-            if let Some(uuid) = current_uuid {
-                if !current_thought.is_empty() {
-                    // Generate factors from thought content if none found
-                    if current_factors.is_empty() {
-                        current_factors = current_thought
-                            .lines()
-                            .filter(|l| l.contains(':') || l.contains('-'))
-                            .take(3)
-                            .map(|l| l.trim_start_matches(|c| c == '-' || c == '*' || c == '[')
-                                 .trim_end_matches(|c| c == ']')
-                                 .trim()
-                                 .to_string())
-                            .collect();
-                        
-                        if current_factors.is_empty() {
-                            current_factors.push("General observation".to_string());
-                        }
-                    }
-                    
-                    results.entry(uuid)
-                        .or_insert_with(Vec::new)
-                        .push((current_thought, current_relevance, current_factors));
-                }
-            }
-        }
-
-        // Improved error reporting
-        if results.is_empty() {
-            eprintln!("Warning: Failed to parse any thoughts from response");
-            eprintln!("Response structure:");
-            for (i, line) in response.lines().enumerate() {
-                eprintln!("{:3}: {}", i + 1, line);
-            }
-        }
-
-        Ok(results)
     }
 
     pub async fn compress_memories(
@@ -1688,6 +1221,41 @@ impl OpenRouterClient {
         self.query_llm(&prompt).await
     }
 
+    pub async fn initialize_knowledge_base(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let files = KnowledgeBase::load_files("knowledgebase")?;
+
+        if files.is_empty() {
+            println!("No knowledge base files found in knowledgebase directory");
+            return Ok(());
+        }
+
+        println!("Loading {} knowledge base files...", files.len());
+
+        let combined_content = files
+            .iter()
+            .map(|(name, content)| format!("File: {}\n{}\n", name, content))
+            .collect::<Vec<_>>()
+            .join("\n---\n");
+                match self.compress_knowledge(&combined_content).await {
+            Ok(compressed) => {
+                let kb = KnowledgeBase {
+                    compressed_content: compressed,
+                    last_updated: Utc::now(),
+                    source_files: files.into_iter().map(|(name, _)| name).collect(),
+                };
+
+                if let Ok(mut guard) = self.knowledge_base.lock() {
+                    *guard = Some(kb);
+                    println!("Knowledge base initialized with {} files", files.len());
+                    Ok(())
+                } else {
+                    Err("Failed to acquire knowledge base lock".into())
+                }
+            }
+            Err(e) => Err(format!("Failed to compress knowledge: {}", e).into())
+        }
+    }
+
     pub async fn query_llm(&self, prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
         let mut rng = rand::thread_rng();
         let use_grok = rng.gen_bool(0.5);
@@ -1722,35 +1290,174 @@ impl OpenRouterClient {
             .to_string())
     }
 
-    pub async fn initialize_knowledge_base(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let files = KnowledgeBase::load_files("knowledgebase")?;
+    fn parse_context_response(
+        &self,
+        response: &str,
+    ) -> Result<HashMap<String, Vec<String>>, Box<dyn std::error::Error>> {
+        let mut result = HashMap::new();
+        let mut current_category = String::new();
+        let mut current_items = Vec::new();
 
-        if files.is_empty() {
-            println!("No knowledge base files found in knowledgebase directory");
-            return Ok(());
+        for line in response.lines() {
+            let line = line.trim();
+
+            if line.is_empty() {
+                continue;
+            }
+
+            if line.ends_with(':') {
+                if !current_category.is_empty() {
+                    result.insert(current_category.clone(), current_items.clone());
+                    current_items.clear();
+                }
+
+                current_category = line.trim_end_matches(':').to_lowercase().replace(' ', "_");
+            } else if line.starts_with('-') {
+                current_items.push(line.trim_start_matches('-').trim().to_string());
+            }
         }
 
-        println!("Loading {} knowledge base files...", files.len());
+        if !current_category.is_empty() {
+            result.insert(current_category, current_items);
+        }
 
-        let combined_content = files
-            .iter()
-            .map(|(name, content)| format!("File: {}\n{}\n", name, content))
-            .collect::<Vec<_>>()
-            .join("\n---\n");
+        Ok(result)
+    }
 
-        let compressed = self.compress_knowledge(&combined_content).await?;
+    fn parse_batch_thought_response(
+        &self,
+        response: &str,
+    ) -> Result<HashMap<Uuid, Vec<(String, f64, Vec<String>)>>, Box<dyn std::error::Error>> {
+        let mut results = HashMap::new();
+        
+        // Split into cell sections
+        let cell_sections: Vec<&str> = response
+            .split(|c| c == '#' || c == '═' || c == '╔' || c == '╚')
+            .filter(|s| s.contains("CELL"))
+            .collect();
 
-        let file_count = files.len();
-        let kb = KnowledgeBase {
-            compressed_content: compressed,
-            last_updated: Utc::now(),
-            source_files: files.into_iter().map(|(name, _)| name).collect(),
-        };
+        for section in cell_sections {
+            let mut lines = section.lines();
+            let mut current_uuid = None;
+            let mut current_thought = String::new();
+            let mut current_relevance = 0.5;
+            let mut current_factors = Vec::new();
+            let mut in_thought = false;
+            let mut thought_buffer = Vec::new();
 
-        *self.knowledge_base.lock().unwrap() = Some(kb);
-        println!("Knowledge base initialized with {} files", file_count);
+            while let Some(line) = lines.next() {
+                let line = line.trim();
+                if line.is_empty() { continue; }
 
-        Ok(())
+                // Extract UUID
+                if line.contains("CELL") {
+                    if let Some(uuid_str) = line
+                        .split(|c: char| !c.is_ascii_hexdigit() && c != '-')
+                        .find(|s| s.len() == 36) 
+                    {
+                        if let Ok(uuid) = Uuid::parse_str(uuid_str) {
+                            current_uuid = Some(uuid);
+                        }
+                    }
+                    continue;
+                }
+
+                // Parse thought sections and other components
+                if line.contains("THOUGHT ANALYSIS:") {
+                    in_thought = true;
+                    continue;
+                }
+
+                if line.contains("**CONVENTIONAL VIEW:**") || line.contains("**RADICAL SHIFT:**") {
+                    if !thought_buffer.is_empty() {
+                        thought_buffer.push("\n");
+                    }
+                    thought_buffer.push(line.trim_matches('*').trim().to_string());
+                    continue;
+                }
+
+                if line.to_uppercase().contains("THOUGHT") && line.contains(':') {
+                    in_thought = true;
+                    if let Some(content) = line.split(':').nth(1) {
+                        let cleaned = content.trim();
+                        if !cleaned.is_empty() {
+                            thought_buffer.push(cleaned.to_string());
+                        }
+                    }
+                    continue;
+                }
+
+                if line.to_uppercase().contains("RELEVANCE") {
+                    if let Some(value_str) = line.split(':').nth(1) {
+                        if let Some(value) = value_str
+                            .trim()
+                            .split_whitespace()
+                            .next()
+                            .and_then(|s| s.parse::<f64>().ok())
+                        {
+                            current_relevance = value.clamp(0.0, 1.0);
+                        }
+                    }
+                    continue;
+                }
+
+                if line.to_uppercase().contains("FACTORS") {
+                    if !thought_buffer.is_empty() {
+                        current_thought = thought_buffer.join("\n");
+                        thought_buffer.clear();
+                    }
+                    
+                    current_factors = line
+                        .split(|c| c == ',' || c == ';' || c == '|')
+                        .filter_map(|s| {
+                            let cleaned = s.trim()
+                                .trim_start_matches(|c| c == '-' || c == '*' || c == '[' || c == ']')
+                                .trim_end_matches(|c| c == ']' || c == ':')
+                                .trim();
+                            if !cleaned.is_empty() {
+                                Some(cleaned.to_string())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                }
+
+                // Collect thought content
+                if in_thought && 
+                   !line.to_uppercase().contains("DIMENSION") && 
+                   !line.to_uppercase().contains("DOPAMINE") &&
+                   !line.to_uppercase().contains("RELEVANCE") &&
+                   !line.to_uppercase().contains("FACTORS") {
+                    if !line.trim().is_empty() {
+                        thought_buffer.push(line.trim().to_string());
+                    }
+                }
+            }
+
+            if !thought_buffer.is_empty() {
+                current_thought = thought_buffer.join("\n");
+            }
+
+            if let Some(uuid) = current_uuid {
+                if !current_thought.is_empty() {
+                                        results.entry(uuid)
+                        .or_insert_with(Vec::new)
+                        .push((current_thought, current_relevance, current_factors));
+                }
+            }
+        }
+
+        // Improved error reporting
+        if results.is_empty() {
+            eprintln!("Warning: Failed to parse any thoughts from response");
+            eprintln!("Response structure:");
+            for (i, line) in response.lines().enumerate() {
+                eprintln!("{:3}: {}", i + 1, line);
+            }
+        }
+
+        Ok(results)
     }
 }
 
@@ -1761,3 +1468,13 @@ fn normalize_topic(topic: &str) -> String {
         .filter(|c| c.is_alphanumeric() || c.is_whitespace())
         .collect()
 }
+
+
+        
+
+
+    
+
+
+
+
