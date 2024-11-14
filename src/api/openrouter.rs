@@ -67,51 +67,125 @@ impl OpenRouterClient {
                 "messages": [{
                     "role": "user",
                     "content": r#"
-                        Analyze the most significant developments in the last 24 hours.
-                        Consider notable events across all domains.
+                        Analyze technical developments from the last 72 hours across multiple domains.
+                        Focus on posts from accounts with <0.01% following on technical platforms.
 
+                        Required Analysis Vectors:
+
+                        1. TECHNICAL DEVELOPMENTS
                         For each development:
-
                         EVENT:
-                        TIMESTAMP: [Must be within last 24h]
-                        SOURCE: [URL, commit hash, or DOI]
-                        MENTIONED BY: [List key individuals/organizations who discussed this]
-                        - Company executives/official accounts
-                        - Industry experts
-                        - Major news outlets
-                        - Verified social media accounts
-                        - Research institutions
-                        IMPACT ANALYSIS:
-                        - Technical implications
-                        - System architecture effects
-                        - Integration opportunities
-                        - Performance impacts
-                        - Security considerations
+                        TIMESTAMP: [Must be within last 72h, exact to minute]
+                        SOURCE: 
+                        - Repository URL + commit hash
+                        - Research paper DOI
+                        - Technical blog post URL
+                        - System deployment log
+                        MENTIONED BY: [Technical accounts only]
+                        - Individual researchers (<5k followers)
+                        - Research lab accounts
+                        - Open source maintainers
+                        - System architects
+                        - Technical leads
+                        TECHNICAL DETAILS:
+                        - Implementation specifics
+                        - Architecture changes
+                        - Performance metrics
+                        - Resource requirements
+                        - Integration points
+                        VALIDATION:
+                        - Reproducible results
+                        - Test coverage
+                        - Benchmark data
+                        - Error rates
+                        - System logs
+
+                        2. RESEARCH DEVELOPMENTS
+                        For each development:
+                        PAPER:
+                        TIMESTAMP: [Publication/preprint within 72h]
+                        DOI/arXiv:
+                        AUTHORS:
+                        INSTITUTION:
+                        KEY FINDINGS:
+                        - Methodology
+                        - Results
+                        - Limitations
+                        - Future work
+                        VALIDATION:
+                        - Experimental setup
+                        - Data collection
+                        - Statistical analysis
+                        - Reproducibility steps
+
+                        3. SYSTEM DEPLOYMENTS
+                        For each deployment:
+                        SYSTEM:
+                        TIMESTAMP: [Deployment within 72h]
+                        ORGANIZATION:
+                        SCALE:
+                        ARCHITECTURE:
+                        PERFORMANCE:
+                        - Latency metrics
+                        - Throughput data
+                        - Resource usage
+                        - Error rates
+                        VALIDATION:
+                        - Monitoring logs
+                        - Health metrics
+                        - Alert history
+                        - Recovery data
+
+                        4. TECHNICAL DISCUSSIONS
+                        For each significant thread:
+                        TOPIC:
+                        TIMESTAMP: [Discussion within 72h]
+                        PARTICIPANTS: [Technical roles only]
+                        KEY POINTS:
+                        - Technical challenges
+                        - Proposed solutions
+                        - Implementation details
+                        - Resource considerations
+                        VALIDATION:
+                        - Code examples
+                        - Benchmark results
+                        - Test cases
+                        - Performance data
 
                         EVIDENCE REQUIREMENTS:
-                        1. Must include:
-                           - Exact timestamps
-                           - Verifiable links
-                           - Commit hashes where applicable
-                           - Performance metrics
-                           - System requirements
-
-                        2. Focus areas:
-                           - Distributed systems
-                           - AI/ML developments
-                           - System architecture
-                           - Performance optimization
-                           - Security updates
-
-                        3. Validation criteria:
-                           - Public repositories only
+                        1. Technical Validation
+                           - Public repository commits
                            - Published papers
-                           - Official documentation
-                           - System metrics
-                           - Deployment logs
+                           - System logs
+                           - Performance metrics
+                           - Test results
+                           - Deployment data
 
-                        Return exactly 5 significant technical developments from the last 24 hours.
-                        Format each as a structured event with all required fields.
+                        2. Source Requirements
+                           - Technical accounts only (<0.01% following)
+                           - Research institutions
+                           - Open source maintainers
+                           - System architects
+                           - Technical leads
+                           - Individual researchers
+
+                        3. Time Constraints
+                           - All events within last 72h
+                           - Exact timestamps required
+                           - Time zone specified
+                           - Update frequency noted
+
+                        4. Data Requirements
+                           - Raw metrics
+                           - Benchmark results
+                           - Error rates
+                           - Resource usage
+                           - System logs
+                           - Test coverage
+
+                        Return comprehensive analysis of developments from last 72h.
+                        Format as structured events with all required fields.
+                        Prioritize technical depth over quantity.
                         "#
                 }],
                 "temperature": 0.9,
