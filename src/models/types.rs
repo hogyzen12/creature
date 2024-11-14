@@ -82,6 +82,8 @@ pub struct Thought {
     pub context_tags: Vec<String>,
     pub real_time_factors: Vec<String>,
     pub confidence_score: f64,
+    pub ascii_visualization: Option<String>,
+    pub referenced_thoughts: Vec<(Uuid, String)>, // (cell_id, thought_id)
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

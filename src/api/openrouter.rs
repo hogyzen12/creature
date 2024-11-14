@@ -1205,6 +1205,9 @@ impl OpenRouterClient {
     RELEVANCE: <0.0-1.0>
     FACTORS: [Exactly 3 key factors]
 
+    ASCII_TEMPLATE: [One of: neural, tree, circuit, feedback, chain]
+    REFERENCES: [comma-separated list of cell_uuid/thought_id pairs]
+
     DIMENSIONAL SCORING:
     Each score must be a whole number (no decimals) within the specified range:
     - EMERGENT_INTELLIGENCE: <Whole number from -100 to 100>

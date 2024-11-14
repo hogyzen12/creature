@@ -288,6 +288,30 @@ impl Cell {
             self.position.z,
             self.thought_counter
         );
+        // Extract ASCII visualization and referenced thoughts from the response
+        let mut ascii_viz = None;
+        let mut referenced_thoughts = Vec::new();
+            
+        for line in response.lines() {
+            if line.starts_with("ASCII_TEMPLATE:") {
+                if let Some(template_name) = line.split(':').nth(1) {
+                    if let Some(template) = crate::utils::ascii_art::get_ascii_template(template_name.trim()) {
+                        ascii_viz = Some(template.to_string());
+                    }
+                }
+            } else if line.starts_with("REFERENCES:") {
+                if let Some(refs) = line.split(':').nth(1) {
+                    for reference in refs.split(',') {
+                        if let Some((cell_id, thought_id)) = reference.trim().split_once('/') {
+                            if let (Ok(cell_uuid), id) = (Uuid::parse_str(cell_id), thought_id.to_string()) {
+                                referenced_thoughts.push((cell_uuid, id));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         let thought = Thought {
             id: thought_id,
             content: filtered_content,
@@ -296,6 +320,8 @@ impl Cell {
             context_tags: self.generate_context_tags(&cell_context),
             real_time_factors: factors,
             confidence_score: self.calculate_confidence_score(&real_time_context),
+            ascii_visualization: ascii_viz,
+            referenced_thoughts,
         };
         println!("\nGenerated Thought:");
         println!("════════════════════════════════════════════════════════════════════");
