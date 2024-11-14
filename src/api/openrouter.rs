@@ -503,9 +503,22 @@ impl OpenRouterClient {
         cell_contexts: &[(Uuid, &CellContext)],
         real_time_context: &RealTimeContext,
         colony_mission: &str,
+        recent_thoughts: &[Thought],
     ) -> Result<HashMap<Uuid, Vec<(String, f64, Vec<String>)>>, Box<dyn std::error::Error>> {
         let sub_batch_size = 3;
         let mut all_results = HashMap::new();
+
+        // Format recent thoughts context
+        let recent_thoughts_context = if !recent_thoughts.is_empty() {
+            format!("\nRECENT COLONY THOUGHTS:\n{}", 
+                recent_thoughts.iter()
+                    .take(10)
+                    .map(|t| format!("- [{}] {}", t.id, t.content))
+                    .collect::<Vec<_>>()
+                    .join("\n"))
+        } else {
+            String::new()
+        };
 
         for chunk in cell_contexts.chunks(sub_batch_size) {
             let kb_context = if let Some(kb) = self.knowledge_base.lock().unwrap().as_ref() {
@@ -532,6 +545,13 @@ impl OpenRouterClient {
 
                 CURRENT OBJECTIVE: {}
                 KNOWLEDGE CONTEXT: {}
+                {}
+
+                THOUGHT GENERATION RULES:
+                1. Generate thoughts that are DISTINCTLY DIFFERENT from recent colony thoughts
+                2. Avoid repeating similar concepts or conclusions
+                3. Explore new angles and perspectives
+                4. Build upon but don't duplicate existing insights
 
                 ENVIRONMENTAL SIGNALS:
                 1. SYSTEM DYNAMICS

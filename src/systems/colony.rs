@@ -155,8 +155,16 @@ impl Colony {
         use tokio::time::timeout;
         use std::time::Duration;
         
-        
         log_timestamp(&format!("Starting batch processing of {} cells", cell_ids.len()));
+
+        // Collect recent thoughts from all cells
+        let mut all_recent_thoughts = Vec::new();
+        for cell in self.cells.values() {
+            all_recent_thoughts.extend(cell.thoughts.iter()
+                .rev()
+                .take(10)
+                .cloned());
+        }
         
         let batch_id = Uuid::new_v4();
         log_metric("Batch ID", batch_id);
