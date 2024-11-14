@@ -1104,11 +1104,28 @@ impl OpenRouterClient {
         colony_mission: &str,
     ) -> Result<(String, f64, Vec<String>), Box<dyn std::error::Error>> {
         let filtered_mission = colony_mission.replace("quantum", "advanced");
+        
+        // Get previous thoughts for uniqueness check
+        let previous_thoughts = cell_context.active_research_topics.iter()
+            .take(10)
+            .map(|t| format!("- {}", t))
+            .collect::<Vec<_>>()
+            .join("\n");
+            
         let context_prompt = format!(
             r#"Multi-Cell Analysis Framework:
 
     MISSION CONTEXT: {}
-
+    
+    PREVIOUS THOUGHTS:
+    {}
+    
+    UNIQUENESS REQUIREMENTS:
+    - Must be substantially different from all previous thoughts
+    - Cannot reuse core concepts or patterns
+    - Must explore new directions and perspectives
+    - Should challenge existing thought patterns
+    
     ENVIRONMENTAL VECTORS:
     1. Market Dynamics: {}
     2. Technical Evolution: {}

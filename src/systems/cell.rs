@@ -357,7 +357,7 @@ impl Cell {
     pub fn get_active_research(&self) -> Vec<String> {
         self.thoughts
             .iter()
-            .take(5)
+            .take(10) // Increased to 10 previous thoughts
             .map(|t| t.content.clone())
             .collect()
     }
