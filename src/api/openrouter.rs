@@ -227,8 +227,7 @@ impl OpenRouterClient {
                 "max_tokens": Self::get_max_tokens_for_model("x-ai/grok-beta")
             }))
             .send()
-            .await
-            .map_err(|_| "Request timed out after 30 seconds".to_string())?
+            .await?
             .map_err(|e| format!("API request failed: {}", e))?;
 
         let json: serde_json::Value = response.json().await?;
