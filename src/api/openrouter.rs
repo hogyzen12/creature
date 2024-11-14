@@ -366,7 +366,7 @@ impl OpenRouterClient {
         cell_contexts: &[(Uuid, &CellContext)],
         real_time_context: &RealTimeContext,
         colony_mission: &str,
-    ) -> Result<HashMap<Uuid, (String, f64, Vec<String>)>, Box<dyn std::error::Error>> {
+    ) -> Result<HashMap<Uuid, Vec<(String, f64, Vec<String>)>>, Box<dyn std::error::Error>> {
         let sub_batch_size = 3;
         let mut all_results = HashMap::new();
 
@@ -496,18 +496,28 @@ impl OpenRouterClient {
             {
                 Ok(Ok(response)) => {
                     if let Ok(results) = self.parse_batch_thought_response(&response) {
-                        println!("║ Generated {} plans", results.len());
-                        for (id, (thought, score, factors)) in &results {
+                        println!("║ Generated {} thoughts", results.len() * 3);
+                        for (id, thoughts) in &results {
                             println!("║");
                             println!("║ Cell {}", id);
-                            println!("║ ├─ Score: {:.2}", score);
-                            println!("║ ├─ Factors:");
-                            for factor in factors {
-                                println!("║ │  - {}", factor);
+                            for (i, (thought, score, factors)) in thoughts.iter().enumerate() {
+                                println!("║ ├─ Thought {}", i + 1);
+                                println!("║ │  Score: {:.2}", score);
+                                println!("║ │  Factors:");
+                                for factor in factors {
+                                    println!("║ │    - {}", factor);
+                                }
+                                println!("║ │  Content: {:.100}...", thought);
                             }
-                            println!("║ └─ Thought: {:.100}...", thought);
                         }
-                        all_results.extend(results);
+                        all_results.extend(results.into_iter().map(|(id, thoughts)| {
+                            // Take the highest scoring thought
+                            let (thought, score, factors) = thoughts.into_iter()
+                                .max_by(|(_, score1, _), (_, score2, _)| 
+                                    score1.partial_cmp(score2).unwrap_or(std::cmp::Ordering::Equal))
+                                .unwrap();
+                            (id, (thought, score, factors))
+                        }));
                     } else {
                         eprintln!("Failed to parse results from response:\n{}", response);
                     }
@@ -1284,7 +1294,7 @@ impl OpenRouterClient {
         &self,
         response: &str,
     ) -> Result<HashMap<Uuid, (String, f64, Vec<String>)>, Box<dyn std::error::Error>> {
-        let mut results = HashMap::new();
+        let mut results: HashMap<Uuid, Vec<(String, f64, Vec<String>)>> = HashMap::new();
         
         // Split into cell sections, being more lenient with formatting
         let cell_sections: Vec<&str> = response
@@ -1433,7 +1443,9 @@ impl OpenRouterClient {
                         }
                     }
                     
-                    results.insert(uuid, (current_thought, current_relevance, current_factors));
+                    results.entry(uuid)
+                        .or_insert_with(Vec::new)
+                        .push((current_thought, current_relevance, current_factors));
                 }
             }
         }
