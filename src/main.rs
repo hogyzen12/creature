@@ -376,6 +376,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Err(e) = colony_guard.save_state() {
                 eprintln!("Error saving state: {}", e);
             }
+            
+            // Update and display leaderboard
+            colony_guard.update_leaderboard();
+            colony_guard.print_leaderboard();
         }
         current_cycle += 1;
         

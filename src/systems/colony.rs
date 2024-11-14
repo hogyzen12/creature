@@ -20,6 +20,7 @@ pub struct Colony {
     pub mission: String,
     pub api_client: OpenRouterClient,
     pub cell_positions: HashMap<Uuid, Coordinates>,
+    plan_leaderboard: HashMap<Uuid, (usize, usize)>, // (thought_count, unique_collaborations)
 }
 
 impl Colony {
@@ -105,6 +106,7 @@ impl Colony {
             mission: mission.to_string(),
             api_client,
             cell_positions: HashMap::new(),
+            plan_leaderboard: HashMap::new(),
         }
     }
 
@@ -980,10 +982,66 @@ impl Colony {
         Ok(())
     }
 
+    pub fn update_leaderboard(&mut self) {
+        self.plan_leaderboard.clear();
+        
+        for (id, cell) in &self.cells {
+            if let Some(plan) = &cell.current_plan {
+                // Count total thoughts in plan
+                let thought_count = plan.thoughts.len();
+                
+                // Count unique collaborating cells
+                let unique_collaborators = plan.participating_cells
+                    .iter()
+                    .filter(|&&cell_id| cell_id != *id)
+                    .count();
+                
+                self.plan_leaderboard.insert(*id, (thought_count, unique_collaborators));
+            }
+        }
+    }
+
+    pub fn print_leaderboard(&self) {
+        println!("\n╔════════════════════ COLONY LEADERBOARD ═══════════════════╗");
+        
+        // Sort by thought count
+        let mut thought_leaders: Vec<_> = self.plan_leaderboard.iter().collect();
+        thought_leaders.sort_by(|a, b| b.1.0.cmp(&a.1.0));
+        
+        println!("║ Top Plans by Thought Count:");
+        println!("║ ┌────────────────┬───────────┬─────────────────┐");
+        println!("║ │ Cell ID        │ Thoughts  │ Collaborators   │");
+        println!("║ ├────────────────┼───────────┼─────────────────┤");
+        for (i, (id, (thoughts, collabs))) in thought_leaders.iter().take(5).enumerate() {
+            println!("║ │ {:<14} │ {:<9} │ {:<15} │", 
+                format!("{}.", i+1) + &id.to_string()[..8],
+                thoughts,
+                collabs
+            );
+        }
+        println!("║ └────────────────┴───────────┴─────────────────┘");
+        
+        // Sort by collaboration count
+        let mut collab_leaders: Vec<_> = self.plan_leaderboard.iter().collect();
+        collab_leaders.sort_by(|a, b| b.1.1.cmp(&a.1.1));
+        
+        println!("║");
+        println!("║ Top Plans by Collaboration Count:");
+        println!("║ ┌────────────────┬───────────┬─────────────────┐");
+        println!("║ │ Cell ID        │ Thoughts  │ Collaborators   │");
+        println!("║ ├────────────────┼───────────┼─────────────────┤");
+        for (i, (id, (thoughts, collabs))) in collab_leaders.iter().take(5).enumerate() {
+            println!("║ │ {:<14} │ {:<9} │ {:<15} │",
+                format!("{}.", i+1) + &id.to_string()[..8],
+                thoughts,
+                collabs
+            );
+        }
+        println!("║ └────────────────┴───────────┴─────────────────┘");
+        println!("╚════════════════════════════════════════════════════════════╝\n");
+    }
+
     pub fn print_statistics(&self) {
-        
-        
-        
         let stats = self.get_statistics();
         println!("║ ┌──────────────────────────┬───────────────────────────┐ ║");
         println!("║ │         Metric           │          Value            │ ║");
