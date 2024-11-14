@@ -371,14 +371,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         time::sleep(Duration::from_millis(CYCLE_DELAY_MS)).await;
         
-        // Display thinking animation
-        for frame in 0..12 {
-            if !running.load(Ordering::SeqCst) {
-                break;
+        // Spawn thinking animation task
+        let animation_running = running.clone();
+        tokio::spawn(async move {
+            let mut frame = 0;
+            while animation_running.load(Ordering::SeqCst) {
+                crate::utils::animations::update_thinking_animation(frame).await;
+                frame = (frame + 1) % 6;
             }
-            crate::utils::animations::update_thinking_animation(frame).await;
-        }
-        println!(); // Clear animation line
+        });
     }
 
     if !running.load(Ordering::SeqCst) {
