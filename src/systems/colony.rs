@@ -19,7 +19,6 @@ pub struct Colony {
     pub cell_positions: HashMap<Uuid, Coordinates>,
     plan_leaderboard: HashMap<Uuid, (usize, usize)>, // (thought_count, unique_collaborations)
 }
-
 impl Colony {
 
     pub async fn process_cell_sub_batch(&mut self, cell_ids: &[Uuid]) -> Result<(), Box<dyn Error>> {
