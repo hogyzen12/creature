@@ -949,10 +949,10 @@ impl Colony {
         Ok(())
     }
 
-    pub fn load_state(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn load_state_from_file(&mut self, filename: &str) -> Result<(), Box<dyn std::error::Error>> {
         use crate::models::state::ColonyState;
         
-        let state = ColonyState::load_from_file(Path::new("eca_state.json"))?;
+        let state = ColonyState::load_from_file(Path::new(filename))?;
         self.mission = state.mission;
         
         // Clear existing cells and load from state

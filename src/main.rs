@@ -146,7 +146,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Try loading state from command line arg or default file
     let state_file = matches.value_of("state").unwrap_or("eca_state.json");
     if std::path::Path::new(state_file).exists() {
-        match colony.load_state(state_file) {
+        match colony.load_state_from_file(state_file) {
             Ok(_) => println!("Loaded colony state from {}", state_file),
             Err(e) => eprintln!("Error loading state from {}: {}", state_file, e)
         }
