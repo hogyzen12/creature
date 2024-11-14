@@ -1333,7 +1333,7 @@ impl OpenRouterClient {
                    !line.to_uppercase().contains("RELEVANCE") &&
                    !line.to_uppercase().contains("FACTORS") {
                     if !line.trim().is_empty() {
-                        thought_buffer.push(line.trim());
+                        thought_buffer.push(line.trim().to_string());
                     }
                 }
             }

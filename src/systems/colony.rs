@@ -99,12 +99,12 @@ impl Colony {
     }
 
 
-    pub fn new(mission: String, api_client: OpenRouterClient) -> Self {
+    pub fn new(mission: &str, api_client: OpenRouterClient) -> Self {
         let lenia_params = LeniaParams::default();
         let lenia_world = LeniaWorld::new(lenia_params);
         Self {
             cells: HashMap::new(),
-            mission,
+            mission: mission.to_string(),
             api_client,
             lenia_world,
         }

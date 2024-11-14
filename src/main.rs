@@ -141,7 +141,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let api_client = api::openrouter::OpenRouterClient::new(api_key.clone())
         .map_err(|e| e as Box<dyn std::error::Error>)?;
-    let mut colony = Colony::new(mission, api_client);
+    let mut colony = Colony::new(&mission, api_client);
     
     // Try loading state from command line arg or default file
     let state_file = matches.value_of("state").unwrap_or("eca_state.json");
