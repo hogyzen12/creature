@@ -20,6 +20,17 @@ struct CachedContext {
 struct ContextHistory {
     contexts: VecDeque<RealTimeContext>,
     max_size: usize,
+    last_update: DateTime<Utc>,
+}
+
+impl Default for ContextHistory {
+    fn default() -> Self {
+        Self {
+            contexts: VecDeque::with_capacity(20),
+            max_size: 20,
+            last_update: Utc::now(),
+        }
+    }
 }
 
 pub struct OpenRouterClient {
@@ -47,10 +58,7 @@ impl OpenRouterClient {
             api_key,
             base_url: "https://openrouter.ai/api/v1".to_string(),
             context_cache: Arc::new(Mutex::new(None)),
-            context_history: Arc::new(Mutex::new(ContextHistory {
-                contexts: VecDeque::with_capacity(20),
-                max_size: 20,
-            })),
+            context_history: Arc::new(Mutex::new(ContextHistory::default())),
             knowledge_base: Arc::new(Mutex::new(None)),
         })
     }
@@ -260,14 +268,15 @@ impl OpenRouterClient {
 
         let trending_topics = self.get_trending_topics().await?;
 
-        // Compare with previous contexts to ensure uniqueness
+        // Deduplicate and filter topics
         let unique_topics: Vec<String> = trending_topics
             .into_iter()
             .filter(|topic| {
+                let topic_lower = topic.to_lowercase();
                 !previous_contexts.iter().any(|ctx| 
-                    ctx.market_trends.contains(topic) ||
-                    ctx.technological_developments.contains(topic) ||
-                    ctx.current_events.contains(topic)
+                    ctx.market_trends.iter().any(|t| t.to_lowercase() == topic_lower) ||
+                    ctx.technological_developments.iter().any(|t| t.to_lowercase() == topic_lower) ||
+                    ctx.current_events.iter().any(|t| t.to_lowercase() == topic_lower)
                 )
             })
             .collect();
@@ -382,18 +391,37 @@ impl OpenRouterClient {
             mission_progress: Vec::new(),
         };
 
-        // Store in cache
-        *self.context_cache.lock().unwrap() = Some(CachedContext {
+        // Update cache with timestamp check
+        let now = SystemTime::now();
+        let mut cache = self.context_cache.lock().unwrap();
+        if let Some(cached) = cache.as_ref() {
+            if cached.timestamp.elapsed().unwrap_or_default() > Duration::from_secs(300) {
+                *cache = None;
+            }
+        }
+        *cache = Some(CachedContext {
             context: context.clone(),
-            timestamp: SystemTime::now(),
+            timestamp: now,
         });
 
-        // Add to history
+        // Update history with timestamp
         {
             let mut history = self.context_history.lock().unwrap();
             history.contexts.push_back(context.clone());
+            history.last_update = Utc::now();
+            
+            // Remove old contexts beyond max size
             while history.contexts.len() > history.max_size {
                 history.contexts.pop_front();
+            }
+            
+            // Remove duplicate topics across all contexts
+            let mut seen_topics = std::collections::HashSet::new();
+            for ctx in history.contexts.iter_mut() {
+                ctx.market_trends.retain(|t| seen_topics.insert(t.to_lowercase()));
+                ctx.technological_developments.retain(|t| seen_topics.insert(t.to_lowercase()));
+                ctx.current_events.retain(|t| seen_topics.insert(t.to_lowercase()));
+                ctx.user_interactions.retain(|t| seen_topics.insert(t.to_lowercase()));
             }
         }
 
