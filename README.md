@@ -96,6 +96,10 @@ cargo run --release -- --name "Frogger" --mission "Explore emergent behaviors in
 
 - `--name`: Specify the name of your simulation or colony.
 - `--mission`: Define the mission or goal guiding the simulation's behavior.
+- `--api-key`: Provide the OpenRouter API key (alternatively can be set via OPENROUTER_API_KEY environment variable).
+- `--batch-size`: Set the number of cells to process in each batch (default: 5).
+- `--cycle-delay`: Set the delay between simulation cycles in milliseconds (default: 10ms).
+- `--max-memory`: Set the maximum memory size per cell in bytes (default: 50,000 bytes).
 
 ## Configuration
 
