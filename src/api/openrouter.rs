@@ -94,14 +94,13 @@ impl OpenRouterClient {
         // Add timeout
         let response = tokio::time::timeout(
             Duration::from_secs(30),
-            self
-            .client
-            .post(&format!("{}/chat/completions", self.base_url))
-            .header("Authorization", format!("Bearer {}", self.api_key))
-            .json(&serde_json::json!({
-                "model": "x-ai/grok-beta",
-                "messages": [{
-                    "role": "user",
+            self.client
+                .post(&format!("{}/chat/completions", self.base_url))
+                .header("Authorization", format!("Bearer {}", self.api_key))
+                .json(&serde_json::json!({
+                    "model": "x-ai/grok-beta",
+                    "messages": [{
+                        "role": "user",
                     "content": r#"
                         Analyze technical developments from the last 72 hours across multiple domains.
                         Focus on posts from accounts with <0.01% following on technical platforms.
@@ -228,7 +227,7 @@ impl OpenRouterClient {
                 "max_tokens": Self::get_max_tokens_for_model("x-ai/grok-beta")
             }))
             .send()
-            .await?;
+            .await.map_err(|e| format!("Timeout error: {}", e))??;
 
         let json: serde_json::Value = response.json().await?;
         let response_text = json["choices"][0]["message"]["content"]
