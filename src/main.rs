@@ -22,6 +22,7 @@ use tokio::sync::mpsc::{self, Sender};
 
 
 const DEFAULT_INITIAL_CELLS: usize = 32;
+const INITIAL_CELLS: usize = DEFAULT_INITIAL_CELLS;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
