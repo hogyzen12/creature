@@ -1421,7 +1421,7 @@ impl OpenRouterClient {
 
                 if line.to_uppercase().contains("FACTORS") {
                     if !thought_buffer.is_empty() {
-                        current_thought = thought_buffer.join("\n");
+                        current_thought = thought_buffer;
                         thought_buffer.clear();
                     }
                     
@@ -1454,7 +1454,7 @@ impl OpenRouterClient {
             }
 
             if !thought_buffer.is_empty() {
-                current_thought = thought_buffer.join("\n");
+                current_thought = thought_buffer;
             }
 
             if let Some(uuid) = current_uuid {
