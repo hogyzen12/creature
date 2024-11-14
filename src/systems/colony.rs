@@ -190,9 +190,12 @@ impl Colony {
         
         // Process cells in smaller sub-batches
                 // Process cells in smaller sub-batches
-        let sub_batch_size = 5;
+        // Calculate dynamic sub-batch size as 10% of total cells, minimum 3 maximum 12
+        let sub_batch_size = ((self.cells.len() as f64 * 0.1).round() as usize)
+            .clamp(3, 12);
         let _results: Vec<Result<(), Box<dyn std::error::Error>>> = Vec::new();
         
+        println!("║ Using dynamic sub-batch size of {} cells", sub_batch_size);
         for chunk in cell_ids.chunks(sub_batch_size) {
             let mut retries = 3;
             let mut delay = Duration::from_secs(1);
