@@ -1,5 +1,4 @@
 use crate::models::types::{CellContext, Coordinates, Plan, PlanStatus, ColonyStatistics, Thought, DimensionalPosition};
-use crate::models::state::LeniaWorldState;
 use crate::utils::logging::*;
 use std::error::Error;
 use std::path::Path;
@@ -8,8 +7,6 @@ use crate::models::plan_analysis::{PlanAnalysis, save_plan_to_file};
 use crate::models::constants::{MAX_THOUGHTS_FOR_PLAN, NEIGHBOR_DISTANCE_THRESHOLD, BATCH_SIZE};
 use crate::api::openrouter::OpenRouterClient;
 use crate::systems::cell::Cell;
-use crate::systems::{LeniaWorld, LeniaParams};
-use ndarray::Array3;
 use std::collections::HashMap;
 use chrono::Utc;
 use uuid::Uuid;

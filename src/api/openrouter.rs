@@ -312,7 +312,7 @@ impl OpenRouterClient {
         let trending_topics = self.get_trending_topics().await?;
 
         // Deduplicate and filter topics
-        let unique_topics: Vec<String> = trending_topics.clone()
+        let _unique_topics: Vec<String> = trending_topics.clone()
             .into_iter()
             .filter(|topic| {
                 let topic_lower = topic.to_lowercase();
@@ -421,7 +421,7 @@ impl OpenRouterClient {
         let response = self.query_llm(&context_query).await?;
         let parsed = self.parse_context_response(&response)?;
 
-        let context = RealTimeContext {
+        let mut context = RealTimeContext {
             timestamp: Utc::now(),
             market_trends: parsed.get("market_trends").cloned().unwrap_or_default(),
             current_events: parsed.get("current_events").cloned().unwrap_or_default(),
