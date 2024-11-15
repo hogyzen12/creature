@@ -200,6 +200,17 @@ impl ThinkingAnimation {
                     map.insert(i, cyan_colors[color_idx].to_string());
                 }
             },
+            ColorStyle::Single(color) => {
+                for i in 0..frame_count {
+                    map.insert(i, color.clone());
+                }
+            },
+            ColorStyle::Gradient(colors) => {
+                for i in 0..frame_count {
+                    let color_idx = (i * colors.len()) / frame_count;
+                    map.insert(i, colors[color_idx].clone());
+                }
+            },
             ColorStyle::None => {
                 for i in 0..frame_count {
                     map.insert(i, String::new());
