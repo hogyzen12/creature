@@ -39,12 +39,12 @@ pub enum ColorStyle {
 }
 
 pub struct AnimationConfig {
-    style: AnimationStyle,
-    color: ColorStyle,
-    message: String,
-    delay: Duration,
-    width: usize,
-    frame_count: usize,
+    pub style: AnimationStyle,
+    pub color: ColorStyle,
+    pub message: String,
+    pub delay: Duration,
+    pub width: usize,
+    pub frame_count: usize,
 }
 
 impl Default for AnimationConfig {
