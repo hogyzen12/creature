@@ -497,20 +497,23 @@ impl Colony {
 
                 combined_thoughts.truncate(MAX_THOUGHTS_FOR_PLAN);
 
-                println!("║ Creating plan for cell {}...", cell_id);
-                                let plan_result = match tokio::time::timeout(
+                println!("║ Creating plan for cell {} (timeout: 300s)...", cell_id);
+                let plan_result = match tokio::time::timeout(
                     std::time::Duration::from_secs(300), // Reduced timeout
                     self.api_client.create_plan(&combined_thoughts)
                 ).await {
                     Ok(result) => match result {
-                        Ok(plan) => plan,
+                        Ok(plan) => {
+                            println!("║ Successfully created plan for cell {}", cell_id);
+                            plan
+                        },
                         Err(e) => {
-                            eprintln!("Error creating plan: {}", e);
+                            eprintln!("║ Error creating plan for cell {}: {}", cell_id, e);
                             continue; // Skip this cell on error
                         }
                     },
                     Err(_) => {
-                        eprintln!("Plan creation timed out after 300 seconds");
+                        eprintln!("║ Plan creation timed out after 300 seconds for cell {}", cell_id);
                         continue;
                     }
                 };
