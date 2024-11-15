@@ -1484,8 +1484,7 @@ ENERGY: {}
                    line.contains("**SYNTHESIS**") || 
                    line.contains("**VISUALIZATION**") {
                     if !thought_buffer.is_empty() {
-                        thought_buffer.push('
-');
+                        thought_buffer.push('\n');
                     }
                     thought_buffer.push_str(line.trim_matches('*').trim());
                     continue;
@@ -1494,8 +1493,7 @@ ENERGY: {}
                 // Capture bullet points and content
                 if line.starts_with("   - ") || line.starts_with("     - ") {
                     if !thought_buffer.is_empty() {
-                        thought_buffer.push('
-');
+                        thought_buffer.push('\n');
                     }
                     thought_buffer.push_str(line.trim_start_matches('-').trim());
                     continue;
