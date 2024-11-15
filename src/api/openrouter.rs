@@ -1518,15 +1518,13 @@ ENERGY: {}
                        line.starts_with("**SYNTHESIS**") ||
                        line.starts_with("**VISUALIZATION**") {
                         if !thought_buffer.is_empty() {
-                            thought_buffer.push('
-');
+                            thought_buffer.push('\n');
                         }
                         thought_buffer.push_str(line.trim());
                     } else if line.starts_with("   -") || line.starts_with("     -") {
                         // Handle bullet points with proper indentation
                         if !thought_buffer.is_empty() {
-                            thought_buffer.push('
-');
+                            thought_buffer.push('\n');
                             thought_buffer.push_str("  "); // Preserve some indentation
                         }
                         thought_buffer.push_str(line.trim_start_matches(|c| c == ' ' || c == '-').trim());
