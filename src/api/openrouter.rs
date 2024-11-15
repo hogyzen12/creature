@@ -1461,12 +1461,16 @@ ENERGY: {}
                 }
 
                 // Parse thought sections and other components
-                if line.contains("THOUGHT ANALYSIS:") {
+                if line.starts_with("**THOUGHT STRUCTURE:**") {
                     in_thought = true;
                     continue;
                 }
 
-                if line.contains("**CONVENTIONAL VIEW:**") || line.contains("**RADICAL SHIFT:**") {
+                // Handle structured sections
+                if line.contains("**OBSERVATION**") || 
+                   line.contains("**ANALYSIS**") || 
+                   line.contains("**SYNTHESIS**") || 
+                   line.contains("**VISUALIZATION**") {
                     if !thought_buffer.is_empty() {
                         thought_buffer.push('
 ');
@@ -1475,15 +1479,33 @@ ENERGY: {}
                     continue;
                 }
 
-                if line.to_uppercase().contains("THOUGHT") && line.contains(':') {
-                    in_thought = true;
-                    if let Some(content) = line.split(':').nth(1) {
-                        let cleaned = content.trim();
-                        if !cleaned.is_empty() {
-                            thought_buffer.push_str(cleaned);
-                        }
+                // Capture bullet points and content
+                if line.starts_with("   - ") || line.starts_with("     - ") {
+                    if !thought_buffer.is_empty() {
+                        thought_buffer.push('
+');
                     }
+                    thought_buffer.push_str(line.trim_start_matches('-').trim());
                     continue;
+                }
+
+                // Capture the main thought content
+                if line.starts_with("**THOUGHT:**") {
+                    in_thought = true;
+                    continue;
+                }
+
+                // Capture main thought paragraphs
+                if in_thought && !line.starts_with("```") && 
+                   !line.contains("RELEVANCE:") && 
+                   !line.contains("FACTORS:") {
+                    if !thought_buffer.is_empty() && !line.is_empty() {
+                        thought_buffer.push('
+');
+                    }
+                    if !line.is_empty() {
+                        thought_buffer.push_str(line.trim());
+                    }
                 }
 
                 if line.to_uppercase().contains("RELEVANCE") {
