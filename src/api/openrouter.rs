@@ -1507,15 +1507,35 @@ ENERGY: {}
                     continue;
                 }
 
-                // Capture main thought paragraphs
+                // Capture main thought paragraphs, including numbered sections
                 if in_thought && !line.starts_with("```") && 
                    !line.contains("RELEVANCE:") && 
                    !line.contains("FACTORS:") {
-                    if !thought_buffer.is_empty() && !line.is_empty() {
-                        thought_buffer.push('
+                    // Handle numbered sections and their content
+                    if line.starts_with(|c: char| c.is_digit(10)) || 
+                       line.starts_with("**OBSERVATION**") ||
+                       line.starts_with("**ANALYSIS**") ||
+                       line.starts_with("**SYNTHESIS**") ||
+                       line.starts_with("**VISUALIZATION**") {
+                        if !thought_buffer.is_empty() {
+                            thought_buffer.push('
 ');
-                    }
-                    if !line.is_empty() {
+                        }
+                        thought_buffer.push_str(line.trim());
+                    } else if line.starts_with("   -") || line.starts_with("     -") {
+                        // Handle bullet points with proper indentation
+                        if !thought_buffer.is_empty() {
+                            thought_buffer.push('
+');
+                            thought_buffer.push_str("  "); // Preserve some indentation
+                        }
+                        thought_buffer.push_str(line.trim_start_matches(|c| c == ' ' || c == '-').trim());
+                    } else if !line.is_empty() {
+                        // Regular content
+                        if !thought_buffer.is_empty() {
+                            thought_buffer.push('
+');
+                        }
                         thought_buffer.push_str(line.trim());
                     }
                 }
