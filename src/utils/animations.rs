@@ -30,6 +30,8 @@ pub enum AnimationStyle {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ColorStyle {
+    Single(String),
+    Gradient(Vec<String>),
     White,
     Cyan,
     CyanGradient,
