@@ -1520,6 +1520,8 @@ ENERGY: {}
                         if !thought_buffer.is_empty() {
                             thought_buffer.push('\n');
                         }
+                        thought_buffer.push('\n');
+                        thought_buffer.push('\n');
                         thought_buffer.push_str(line.trim());
                     } else if line.starts_with("   -") || line.starts_with("     -") {
                         // Handle bullet points with proper indentation
