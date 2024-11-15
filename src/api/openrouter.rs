@@ -1531,8 +1531,7 @@ ENERGY: {}
                     } else if !line.is_empty() {
                         // Regular content
                         if !thought_buffer.is_empty() {
-                            thought_buffer.push('
-');
+                            thought_buffer.push('\n');
                         }
                         thought_buffer.push_str(line.trim());
                     }
