@@ -1520,7 +1520,12 @@ ENERGY: {}
                     }
                 }
 
+                // Handle relevance score at the end of thought
                 if line.to_uppercase().contains("RELEVANCE") {
+                    if !thought_buffer.is_empty() {
+                        current_thought = thought_buffer.clone();
+                        thought_buffer.clear();
+                    }
                     if let Some(value_str) = line.split(':').nth(1) {
                         if let Some(value) = value_str
                             .trim()
