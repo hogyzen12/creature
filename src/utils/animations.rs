@@ -19,9 +19,9 @@ pub enum AnimationStyle {
 }
 
 pub struct AnimationConfig {
-    style: AnimationStyle,
-    message: String,
-    delay: Duration,
+    pub style: AnimationStyle,
+    pub message: String,
+    pub delay: Duration,
 }
 
 impl Default for AnimationConfig {
