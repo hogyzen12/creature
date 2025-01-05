@@ -10,6 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 use crate::models::types::{CellContext, Coordinates, Plan, PlanStatus, ColonyStatistics, Thought, DimensionalPosition};
 use crate::utils::logging::*;
+use crate::api::ModelClient;
 use std::error::Error;
 use std::path::Path;
 use std::collections::VecDeque;
@@ -25,13 +26,16 @@ use rand::{Rng, seq::SliceRandom};
 pub struct Colony {
     pub cells: HashMap<Uuid, Cell>,
     pub mission: String,
-    pub api_client: OpenRouterClient,
+    pub api_client: Box<dyn ModelClient>,  // Change this line
     pub cell_positions: HashMap<Uuid, Coordinates>,
-    plan_leaderboard: HashMap<Uuid, (usize, usize)>, // (thought_count, unique_collaborations)
+    plan_leaderboard: HashMap<Uuid, (usize, usize)>,
 }
 impl Colony {
 
     pub async fn process_cell_sub_batch(&mut self, cell_ids: &[Uuid]) -> Result<(), Box<dyn Error>> {
+        // Get a reference to the trait object once at the start
+        let api_client: &dyn ModelClient = self.api_client.as_ref();
+
         let thoughts: Vec<_> = cell_ids.iter()
             .filter_map(|id| self.cells.get(&id))
             .flat_map(|cell| cell.thoughts.iter())
@@ -61,7 +65,7 @@ impl Colony {
                 while retries > 0 {
                     match tokio::time::timeout(
                         std::time::Duration::from_secs(180),
-                        cell.generate_thought(&self.api_client, &self.mission)
+                        cell.generate_thought(api_client, &self.mission)
                     ).await {
                         Ok(Ok(_)) => {
                             success_count += 1;
@@ -105,7 +109,7 @@ impl Colony {
     }
 
 
-    pub fn new(mission: &str, api_client: OpenRouterClient) -> Self {
+    pub fn new(mission: &str, api_client: Box<dyn ModelClient>) -> Self {
         Self {
             cells: HashMap::new(),
             mission: mission.to_string(),
@@ -166,6 +170,7 @@ impl Colony {
         use std::time::Duration;
         
         log_timestamp(&format!("Starting batch processing of {} cells", cell_ids.len()));
+        let api_client: &dyn ModelClient = self.api_client.as_ref();
 
         // Collect recent thoughts from all cells
         let mut all_recent_thoughts = Vec::new();
@@ -427,7 +432,7 @@ impl Colony {
                     }
                     
                     updated_cell.thoughts.push_back(thought);
-                    if let Err(e) = updated_cell.check_and_compress_memories(&self.api_client).await {
+                    if let Err(e) = updated_cell.check_and_compress_memories(self.api_client.as_ref()).await {
                         eprintln!("Error compressing memories: {}", e);
                     }
                 }
@@ -722,9 +727,10 @@ Relevant developments:
         Ok(())
     }
 
-    pub async fn compress_colony_memories(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn compress_colony_memories(&mut self) -> Result<(), Box<dyn Error>> {
+        let api_client: &dyn ModelClient = self.api_client.as_ref();
         for cell in self.cells.values_mut() {
-            cell.check_and_compress_memories(&self.api_client).await?;
+            cell.check_and_compress_memories(api_client).await?;
         }
         Ok(())
     }
@@ -1304,7 +1310,7 @@ Relevant developments:
 
     pub async fn process_cell_thoughts(&mut self, cell_id: Uuid) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(cell) = self.cells.get_mut(&cell_id) {
-            cell.generate_thought(&self.api_client, &self.mission).await?;
+            cell.generate_thought(&*self.api_client, &self.mission).await?;
         }
         Ok(())
     }

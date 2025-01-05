@@ -4,3 +4,6 @@ rust/Cargo.lock
 rust/Cargo.toml
 /rust/target
 .DS_Store
+old_data_run/*
+target/*
+data/*

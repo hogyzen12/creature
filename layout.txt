@@ -1,0 +1,53 @@
+.
+├── Cargo.lock
+├── Cargo.toml
+├── README.md
+├── data
+│   ├── plans
+│   │   └── plans
+│   └── thoughts
+├── eca_state.json
+├── key.txt
+├── layout.txt
+├── src
+│   ├── api
+│   │   ├── gemini.rs
+│   │   ├── mod.rs
+│   │   └── openrouter.rs
+│   ├── interface
+│   │   ├── mod.rs
+│   │   └── widgets.rs
+│   ├── main.rs
+│   ├── models
+│   │   ├── constants.rs
+│   │   ├── knowledge.rs
+│   │   ├── mod.rs
+│   │   ├── plan_analysis.rs
+│   │   ├── state.rs
+│   │   ├── thought_io.rs
+│   │   └── types.rs
+│   ├── server.rs
+│   ├── systems
+│   │   ├── cell.rs
+│   │   ├── colony.rs
+│   │   ├── lenia.rs
+│   │   ├── ltl.rs
+│   │   ├── mod.rs
+│   │   ├── ndarray_serde.rs
+│   │   └── quantum.rs
+│   └── utils
+│       ├── animations.rs
+│       ├── ascii_art.rs
+│       ├── logging.rs
+│       └── mod.rs
+└── target
+    ├── CACHEDIR.TAG
+    └── release
+        ├── build
+        ├── creature
+        ├── creature.d
+        ├── deps
+        ├── examples
+        └── incremental
+
+17 directories, 34 files

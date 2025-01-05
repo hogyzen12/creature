@@ -13,6 +13,7 @@ use crate::models::thought_io::{EventInput, EventOutput, ThoughtIO};
 use crate::models::constants::MAX_MEMORY_SIZE;
 use crate::api::openrouter::OpenRouterClient;
 use crate::systems::ltl::{ExtendedNeighborhood, EnhancedCellState, InteractionEffect};
+use crate::api::model_client::ModelClient;  // Add this import
 use std::collections::{HashMap, VecDeque};
 use std::error::Error;
 use chrono::Utc;
@@ -168,7 +169,7 @@ impl Cell {
 
     pub async fn generate_thought(
         &mut self,
-        api_client: &OpenRouterClient,
+        api_client: &dyn ModelClient,  // Changed from &Box<dyn ModelClient>
         mission: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
         // First evaluate dimensional state
@@ -185,6 +186,7 @@ impl Cell {
         // Apply impacts
         self.energy = (self.energy + energy_impact).clamp(0.0, 100.0);
         self.dopamine = (self.dopamine + (dopamine_impact - 0.5)).clamp(0.0, 1.0);
+
         let cell_context = CellContext {
             current_focus: self.get_current_focus(),
             active_research_topics: self.get_active_research(),
@@ -371,7 +373,10 @@ Generated Thought:");
         Ok(())
     }
 
-    pub async fn check_and_compress_memories(&mut self, api_client: &OpenRouterClient) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn check_and_compress_memories(
+        &mut self,
+        api_client: &dyn ModelClient  // Changed from &Box<dyn ModelClient>
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let total_size: usize = self.thoughts.iter().map(|t| t.content.len()).sum();
 
         if total_size > MAX_MEMORY_SIZE {

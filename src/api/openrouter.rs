@@ -32,6 +32,9 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
+use std::error::Error;  // Add this
+use async_trait::async_trait;  // Add this
+use crate::api::model_client::ModelClient;  // Add this
 
 #[derive(Debug)]
 pub enum ClientError {
@@ -82,6 +85,132 @@ pub struct OpenRouterClient {
     knowledge_base: Arc<Mutex<Option<KnowledgeBase>>>,
 }
 
+#[async_trait]
+impl ModelClient for OpenRouterClient {
+    async fn generate_contextual_thought(
+        &self,
+        cell_context: &CellContext,
+        real_time_context: &RealTimeContext,
+        colony_mission: &str,
+    ) -> Result<(String, f64, Vec<String>), Box<dyn Error>> {
+        let mut results = self.generate_contextual_thoughts_batch(&[(Uuid::new_v4(), cell_context)], real_time_context, colony_mission, &[]).await?;
+        
+        if let Some((_, thoughts)) = results.iter().next().map(|(k,v)| (k,v.clone())) {
+            if let Some(thought) = thoughts.into_iter().next() {
+                return Ok(thought);
+            }
+        }
+        
+        Err("Failed to generate thought".into())
+    }
+
+    async fn create_plan(&self, thoughts: &[Thought]) -> Result<Plan, Box<dyn Error>> {
+        // Create a new plan using the existing method
+        self.create_plan(thoughts).await
+    }
+
+    async fn evaluate_dimensional_state(
+        &self,
+        position: &DimensionalPosition,
+        thoughts: &[Thought],
+        plans: &[Plan],
+    ) -> Result<(f64, f64), Box<dyn Error>> {
+        // Evaluate dimensional state using the existing method
+        self.evaluate_dimensional_state(position, thoughts, plans).await
+    }
+
+    async fn compress_memories(&self, memories: &[String]) -> Result<String, Box<dyn Error>> {
+        // Compress memories using the existing method
+        self.compress_memories(memories).await
+    }
+
+    async fn gather_real_time_context(
+        &self,
+        cell_thoughts: Option<Vec<String>>,
+    ) -> Result<RealTimeContext, Box<dyn Error>> {
+        let should_refresh = {
+            match self.context_cache.lock() {
+                Ok(cache) => {
+                    match cache.as_ref() {
+                        Some(cached) => cached.timestamp.elapsed()
+                            .map_or(true, |d| d >= Duration::from_secs(300)),
+                        None => true
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Cache lock error: {}", e);
+                    true
+                }
+            }
+        };
+
+        if !should_refresh {
+            return Ok(RealTimeContext::default());
+        }
+
+        // Get previous contexts for comparison
+        let previous_contexts = {
+            let history = self.context_history.lock().unwrap();
+            history.contexts.iter().cloned().collect::<Vec<_>>()
+        };
+
+        let trending_topics = self.get_trending_topics().await?;
+        
+        // Implement the rest of the gather_real_time_context method...
+        Ok(RealTimeContext::default())  // Temporary return for demonstration
+    }
+
+    async fn generate_contextual_thoughts_batch(
+        &self,
+        cell_contexts: &[(Uuid, &CellContext)],
+        real_time_context: &RealTimeContext,
+        colony_mission: &str,
+        recent_thoughts: &[Thought],
+    ) -> Result<HashMap<Uuid, Vec<(String, f64, Vec<String>)>>, Box<dyn Error>> {
+        let use_grok = rand::random::<bool>();
+        let sub_batch_size = 3;
+        let mut all_results = HashMap::new();
+
+        // Implement the batch processing logic...
+        
+        Ok(all_results)
+    }
+
+    async fn query_llm(&self, prompt: &str) -> Result<String, Box<dyn Error>> {
+        // Generate random bool outside of async context
+        let use_grok = rand::random::<bool>();
+        
+        let model = if use_grok {
+            "x-ai/grok-beta"
+        } else {
+            "x-ai/grok-beta"
+        };
+
+        let response = self
+            .client
+            .post(&format!("{}/chat/completions", self.base_url))
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .json(&serde_json::json!({
+                "model": model,
+                "messages": [{
+                    "role": "user",
+                    "content": prompt
+                }],
+                "temperature": 0.7,
+                "max_tokens": Self::get_max_tokens_for_model(model)
+            }))
+            .send()
+            .await?;
+
+        let json: serde_json::Value = response.json().await?;
+
+        Ok(json["choices"][0]["message"]["content"]
+            .as_str()
+            .unwrap_or("")
+            .to_string())
+    }
+}
+
 impl OpenRouterClient {
     pub fn new(api_key: String) -> Result<Self, Box<dyn std::error::Error>> {
         if api_key.trim().is_empty() {
@@ -115,9 +244,7 @@ impl OpenRouterClient {
     }
 
     async fn get_trending_topics(&self) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-        let _rng = rand::thread_rng();
-        
-        // Rate limiting
+        // Rate limiting using atomic instead of thread_rng
         static LAST_REQUEST: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -131,6 +258,9 @@ impl OpenRouterClient {
         
         LAST_REQUEST.store(now, std::sync::atomic::Ordering::Relaxed);
         
+        // Generate random values outside of async context
+        let use_grok = rand::random::<bool>();
+        
         // Add timeout
         let response = tokio::time::timeout(
             Duration::from_secs(30),
@@ -138,7 +268,7 @@ impl OpenRouterClient {
                 .post(&format!("{}/chat/completions", self.base_url))
                 .header("Authorization", format!("Bearer {}", self.api_key))
                 .json(&serde_json::json!({
-                    "model": "x-ai/grok-beta",
+                    "model": if use_grok { "x-ai/grok-beta" } else { "x-ai/grok-beta" },
                     "messages": [{
                         "role": "user",
                         "content": r#"
@@ -1367,15 +1497,15 @@ ENERGY: {}
     }
 
     pub async fn query_llm(&self, prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
-        let mut rng = rand::thread_rng();
-        let use_grok = rng.gen_bool(0.5);
+        // Generate random bool outside of async context
+        let use_grok = rand::random::<bool>();
         
         let model = if use_grok {
             "x-ai/grok-beta"
         } else {
             "x-ai/grok-beta"
         };
-
+    
         let response = self
             .client
             .post(&format!("{}/chat/completions", self.base_url))
@@ -1391,9 +1521,9 @@ ENERGY: {}
             }))
             .send()
             .await?;
-
+    
         let json: serde_json::Value = response.json().await?;
-
+    
         Ok(json["choices"][0]["message"]["content"]
             .as_str()
             .unwrap_or("")

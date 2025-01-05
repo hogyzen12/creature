@@ -31,6 +31,7 @@ use serde_json::json;
 use tokio::sync::mpsc::{self, Sender};
 
 use crate::utils::animations::{AnimationStyle, AnimationConfig, ThinkingAnimation};
+use crate::api::{ModelClient, LocalLLMClient, OpenRouterClient};
 
 const DEFAULT_INITIAL_CELLS: usize = 32;
 
@@ -136,6 +137,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .value_name("COUNT")
             .help("Sets the initial number of cells (default: 32)")
             .takes_value(true))
+        .arg(
+            Arg::with_name("local-model")
+            .long("local-model")
+            .help("Use local model instead of OpenRouter")
+            .takes_value(false)
+        )
         .get_matches();
 
     let initial_cells = matches.value_of("cells")
@@ -149,8 +156,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let colony_name = matches.value_of("name").unwrap_or("Unnamed");
     
 
-    let api_client = api::openrouter::OpenRouterClient::new(api_key.clone())
-        .map_err(|e| e as Box<dyn std::error::Error>)?;
+    let api_client: Box<dyn ModelClient> = if matches.is_present("local-model") {
+        Box::new(LocalLLMClient::new()?)
+    } else {
+        let api_key = std::env::var("OPENROUTER_API_KEY")
+            .map_err(|_| "OPENROUTER_API_KEY not set")?;
+        Box::new(OpenRouterClient::new(api_key)?)
+    };
     let mut colony = Colony::new(&mission, api_client);
 
     let state_file = matches.value_of("state").unwrap_or("eca_state.json");
